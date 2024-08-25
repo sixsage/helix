@@ -1,0 +1,7 @@
+.ipynb_checkpoints
+*.pth
+*.pdf
+sintracks_100k.txt
+tracks_1m_updated.txt
+tracks_1m.txt
+tracks.txt
