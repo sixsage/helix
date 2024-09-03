@@ -184,16 +184,16 @@ def test():
 # scan()
 
 # generate tracks and output them
-tracks = gen_tracks(n=100000)
-f=open("tracks_100k.txt","w")
+tracks = gen_tracks(n=1000000)
+f=open("tracks_1m_4sigfig.txt","w")
 for track in tracks:
     params = track[0]
     xs = track[1]
     ys = track[2]
     zs = track[3]
-    f.write("%1.2f, %1.2f, %1.2f, %1.2f, %1.2f\n" % params)
+    f.write("%1.4f, %1.4f, %1.4f, %1.4f, %1.4f\n" % params)
     for i in range(len(xs)):
-        f.write("%1.2f, %1.2f, %1.2f\n" % (xs[i],ys[i],zs[i]))
+        f.write("%1.4f, %1.4f, %1.4f\n" % (xs[i],ys[i],zs[i]))
     f.write("EOT\n\n")
 f.close()
 

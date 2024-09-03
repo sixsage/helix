@@ -13,10 +13,10 @@ LEARNING_RATE = 0.001
 EPOCH = 150
 
 # MODEL_PATH = "autoencoder_points\\results2\\autoencoder_epoch_40.pth"
-ENCODER_PATH = "autoencoder_points\\results\\encoder_epoch_50.pth"
-DECODER_PATH = "autoencoder_points\\results\\decoder_epoch_50.pth"
-HELIX_PATH = 'tracks.txt'
-NON_HELIX_PATH = 'sintracks_100k.txt'
+ENCODER_PATH = "autoencoder_points\\results4\\encoder_epoch_60.pth"
+DECODER_PATH = "autoencoder_points\\results4\\decoder_epoch_60.pth"
+HELIX_PATH = 'tracks_100k_4sigfig.txt'
+NON_HELIX_PATH = 'sintracks_100k_4sigfig.txt'
 
 class Dataset(Dataset):
     def __init__(self, helix_path, non_helix_path, transform=None):
@@ -65,28 +65,59 @@ class Dataset(Dataset):
 class Encoder(nn.Module):
     def __init__(self):
         super().__init__()
-        self.layer1 = nn.Linear(30, 32)
-        self.layer2 = nn.Linear(32, 64)
-        self.layer3 = nn.Linear(64, 5)
+        # self.layer1 = nn.Linear(30, 32)
+        # self.layer2 = nn.Linear(32, 64)
+        # self.layer3 = nn.Linear(64, 5)
+        self.layer1 = nn.Linear(30, 200)
+        self.layer2 = nn.Linear(200, 400)
+        self.layer3 = nn.Linear(400, 800)
+        self.layer4 = nn.Linear(800, 800)
+        self.layer5 = nn.Linear(800, 800)
+        self.layer6 = nn.Linear(800, 400)
+        self.layer7 = nn.Linear(400, 200)
+        self.output_layer = nn.Linear(200, 5)
+
 
     def forward(self, x):
-        x = self.layer1(x)
-        x = self.layer2(x)
-        x = self.layer3(x)
+        x = F.leaky_relu(self.layer1(x))
+        x = F.leaky_relu(self.layer2(x))
+        x = F.leaky_relu(self.layer3(x))
+        x = F.leaky_relu(self.layer4(x))
+        x = F.leaky_relu(self.layer5(x))
+        x = F.leaky_relu(self.layer6(x))
+        x = F.leaky_relu(self.layer7(x))
+        x = self.output_layer(x)
         return x
     
 class Decoder(nn.Module):
 
     def __init__(self):
         super().__init__()
-        self.layer1 = nn.Linear(5, 64)
-        self.layer2 = nn.Linear(64, 32)
-        self.layer3 = nn.Linear(32, 30)
+        # self.layer1 = nn.Linear(5, 64)
+        # self.layer2 = nn.Linear(64, 32)
+        # self.layer3 = nn.Linear(32, 30)
+        self.layer1 = nn.Linear(5, 200)
+        self.layer2 = nn.Linear(200, 200)
+        self.layer3 = nn.Linear(200, 200)
+        self.layer4 = nn.Linear(200, 400)
+        self.layer5 = nn.Linear(400, 800)
+        self.layer6 = nn.Linear(800, 800)
+        self.layer7 = nn.Linear(800, 800)
+        self.layer8 = nn.Linear(800, 400)
+        self.layer9 = nn.Linear(400, 200)
+        self.output_layer = nn.Linear(200, 30)
 
     def forward(self, x):
-        x = self.layer1(x)
-        x = self.layer2(x)
-        x = self.layer3(x)
+        x = F.relu(self.layer1(x))
+        x = F.relu(self.layer2(x))
+        x = F.relu(self.layer3(x))
+        x = F.relu(self.layer4(x))
+        x = F.relu(self.layer5(x))
+        x = F.relu(self.layer6(x))
+        x = F.relu(self.layer7(x))
+        x = F.relu(self.layer8(x))
+        x = F.relu(self.layer9(x))
+        x = self.output_layer(x)
         return x
     
 def test_distance(encoder, decoder, encoder_optimizer, decoder_optimizer, encoder_scheduler, decoder_scheduler, val_dl, device, prev_encoder_path, prev_decoder_path, data_size, threshold=1):
@@ -163,4 +194,4 @@ if __name__ == '__main__':
     decoder_scheduler = torch.optim.lr_scheduler.MultiStepLR(decoder_optimizer, milestones=[15, 30, 50], gamma=0.1)
     
     test_distance(encoder, decoder, encoder_optimizer, decoder_optimizer, encoder_scheduler, decoder_scheduler, val_dl=dataloader, device=device, 
-                  prev_encoder_path=ENCODER_PATH, prev_decoder_path=DECODER_PATH, data_size=len(dataset), threshold=15)
+                  prev_encoder_path=ENCODER_PATH, prev_decoder_path=DECODER_PATH, data_size=len(dataset), threshold=3)

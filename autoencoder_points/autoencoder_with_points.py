@@ -18,9 +18,9 @@ LEARNING_RATE = 0.001
 EPOCH = 60
 
 RESULTS_PATH = 'autoencoder_points\\results2\\'
-DATASET_PATH = 'tracks.txt'
-ENCODER_RESULTS_PATH = 'autoencoder_points\\results\\'
-DECODER_RESULTS_PATH = 'autoencoder_points\\results\\'
+DATASET_PATH = 'tracks_1m_4sigfig.txt'
+ENCODER_RESULTS_PATH = 'autoencoder_points\\results4\\'
+DECODER_RESULTS_PATH = 'autoencoder_points\\results4\\'
 
 class Dataset(Dataset):
     def __init__(self, path, transform=None):
@@ -52,48 +52,59 @@ class Dataset(Dataset):
 class Encoder(nn.Module):
     def __init__(self):
         super().__init__()
-        self.layer1 = nn.Linear(30, 32)
-        self.layer2 = nn.Linear(32, 64)
-        self.layer3 = nn.Linear(64, 5)
+        # self.layer1 = nn.Linear(30, 32)
+        # self.layer2 = nn.Linear(32, 64)
+        # self.layer3 = nn.Linear(64, 5)
+        self.layer1 = nn.Linear(30, 200)
+        self.layer2 = nn.Linear(200, 400)
+        self.layer3 = nn.Linear(400, 800)
+        self.layer4 = nn.Linear(800, 800)
+        self.layer5 = nn.Linear(800, 800)
+        self.layer6 = nn.Linear(800, 400)
+        self.layer7 = nn.Linear(400, 200)
+        self.output_layer = nn.Linear(200, 5)
+
 
     def forward(self, x):
-        x = self.layer1(x)
-        x = self.layer2(x)
-        x = self.layer3(x)
+        x = F.leaky_relu(self.layer1(x))
+        x = F.leaky_relu(self.layer2(x))
+        x = F.leaky_relu(self.layer3(x))
+        x = F.leaky_relu(self.layer4(x))
+        x = F.leaky_relu(self.layer5(x))
+        x = F.leaky_relu(self.layer6(x))
+        x = F.leaky_relu(self.layer7(x))
+        x = self.output_layer(x)
         return x
     
 class Decoder(nn.Module):
 
     def __init__(self):
         super().__init__()
-        self.layer1 = nn.Linear(5, 64)
-        self.layer2 = nn.Linear(64, 32)
-        self.layer3 = nn.Linear(32, 30)
+        # self.layer1 = nn.Linear(5, 64)
+        # self.layer2 = nn.Linear(64, 32)
+        # self.layer3 = nn.Linear(32, 30)
+        self.layer1 = nn.Linear(5, 200)
+        self.layer2 = nn.Linear(200, 200)
+        self.layer3 = nn.Linear(200, 200)
+        self.layer4 = nn.Linear(200, 400)
+        self.layer5 = nn.Linear(400, 800)
+        self.layer6 = nn.Linear(800, 800)
+        self.layer7 = nn.Linear(800, 800)
+        self.layer8 = nn.Linear(800, 400)
+        self.layer9 = nn.Linear(400, 200)
+        self.output_layer = nn.Linear(200, 30)
 
     def forward(self, x):
-        x = self.layer1(x)
-        x = self.layer2(x)
-        x = self.layer3(x)
-        return x
-    
-class Autoencoder(nn.Module):
-
-    def __init__(self):
-        super().__init__()
-        self.layer1 = nn.Linear(3, 4)
-        self.layer2 = nn.Linear(4, 8)
-        self.layer3 = nn.Linear(8, 6)
-        self.layer4 = nn.Linear(6, 8)
-        self.layer5 = nn.Linear(8, 4)
-        self.layer8 = nn.Linear(4, 3)
-
-    def forward(self, x):
-        x = self.layer1(x)
-        x = self.layer2(x)
-        x = self.layer3(x)
-        x = self.layer4(x)
-        x = self.layer5(x)
-        x = self.layer8(x)
+        x = F.relu(self.layer1(x))
+        x = F.relu(self.layer2(x))
+        x = F.relu(self.layer3(x))
+        x = F.relu(self.layer4(x))
+        x = F.relu(self.layer5(x))
+        x = F.relu(self.layer6(x))
+        x = F.relu(self.layer7(x))
+        x = F.relu(self.layer8(x))
+        x = F.relu(self.layer9(x))
+        x = self.output_layer(x)
         return x
     
 def train_model(model, criterion, optimizer, scheduler, train_dl, val_dl, device, results_file, num_epochs=EPOCH, prev_model_path=''):
@@ -306,7 +317,7 @@ if __name__ == '__main__':
     decoder_criterion = nn.MSELoss()
     encoder_optimizer = torch.optim.Adam(encoder.parameters(), lr = LEARNING_RATE)
     decoder_optimizer = torch.optim.Adam(decoder.parameters(), lr = LEARNING_RATE)
-    encoder_scheduler = torch.optim.lr_scheduler.MultiStepLR(encoder_optimizer, milestones=[15, 30, 50], gamma=0.5)
-    decoder_scheduler = torch.optim.lr_scheduler.MultiStepLR(decoder_optimizer, milestones=[15, 30, 50], gamma=0.1)
+    encoder_scheduler = torch.optim.lr_scheduler.MultiStepLR(encoder_optimizer, milestones=[10, 25, 40], gamma=0.5)
+    decoder_scheduler = torch.optim.lr_scheduler.MultiStepLR(decoder_optimizer, milestones=[10, 25, 40], gamma=0.5)
     
     train_encoder_decoder(encoder, decoder, encoder_optimizer, decoder_optimizer, encoder_scheduler, decoder_scheduler, num_epochs=EPOCH, train_dl=train_dataloader, val_dl=val_dataloader, device=device, results_file_encoder=ENCODER_RESULTS_PATH+'encoder_results.csv', results_file_decoder=DECODER_RESULTS_PATH+"decoder_results.csv")
