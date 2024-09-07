@@ -18,9 +18,12 @@ LEARNING_RATE = 0.001
 EPOCH = 60
 
 RESULTS_PATH = 'autoencoder_points\\results2\\'
-DATASET_PATH = 'tracks_1m_4sigfig.txt'
-ENCODER_RESULTS_PATH = 'autoencoder_points\\results4\\'
-DECODER_RESULTS_PATH = 'autoencoder_points\\results4\\'
+DATASET_PATH = 'tracks_1m_updated.txt'
+ENCODER_RESULTS_PATH = 'autoencoder_points\\results5\\'
+DECODER_RESULTS_PATH = 'autoencoder_points\\results5\\'
+# results5 uses tracks_1m_updated is where only d0 has 4 sigfigs
+# by far, everything 4sigfig has the highest accuracy of 96 percent
+
 
 class Dataset(Dataset):
     def __init__(self, path, transform=None):

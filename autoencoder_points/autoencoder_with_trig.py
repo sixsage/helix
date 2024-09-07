@@ -18,9 +18,9 @@ LEARNING_RATE = 0.001
 EPOCH = 60
 
 RESULTS_PATH = 'autoencoder_points\\results2\\'
-DATASET_PATH = 'tracks_1m_4sigfig.txt'
-ENCODER_RESULTS_PATH = 'autoencoder_points\\results_trig3\\'
-DECODER_RESULTS_PATH = 'autoencoder_points\\results_trig3\\'
+DATASET_PATH = 'tracks_1m_updated.txt'
+ENCODER_RESULTS_PATH = 'autoencoder_points\\results_trig4\\'
+DECODER_RESULTS_PATH = 'autoencoder_points\\results_trig4\\'
     
 class Dataset(Dataset):
     def __init__(self, path, transform=None):
@@ -338,8 +338,10 @@ if __name__ == '__main__':
     decoder_criterion = nn.MSELoss()
     encoder_optimizer = torch.optim.Adam(encoder.parameters(), lr = LEARNING_RATE)
     decoder_optimizer = torch.optim.Adam(decoder.parameters(), lr = LEARNING_RATE)
-    encoder_scheduler = torch.optim.lr_scheduler.MultiStepLR(encoder_optimizer, milestones=[10, 25, 40], gamma=0.5)
-    decoder_scheduler = torch.optim.lr_scheduler.MultiStepLR(decoder_optimizer, milestones=[10, 25, 40], gamma=0.5)
+    # encoder_scheduler = torch.optim.lr_scheduler.MultiStepLR(encoder_optimizer, milestones=[10, 25, 40], gamma=0.5)
+    # decoder_scheduler = torch.optim.lr_scheduler.MultiStepLR(decoder_optimizer, milestones=[10, 25, 40], gamma=0.5)
+    encoder_scheduler = torch.optim.lr_scheduler.MultiStepLR()
+    decoder_scheduler = torch.optim.lr_scheduler.MultiStepLR()
     
     train_encoder_decoder(encoder, decoder, encoder_optimizer, decoder_optimizer, encoder_scheduler, decoder_scheduler, 
                           num_epochs=EPOCH, train_dl=train_dataloader, val_dl=val_dataloader, device=device, 
