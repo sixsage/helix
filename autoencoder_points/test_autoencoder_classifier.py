@@ -13,8 +13,8 @@ LEARNING_RATE = 0.001
 EPOCH = 150
 
 # MODEL_PATH = "autoencoder_points\\results2\\autoencoder_epoch_40.pth"
-ENCODER_PATH = "autoencoder_points\\results5\\encoder_epoch_55.pth"
-DECODER_PATH = "autoencoder_points\\results5\\decoder_epoch_55.pth"
+ENCODER_PATH = "autoencoder_points\\results6_minmax\\encoder_epoch_25.pth"
+DECODER_PATH = "autoencoder_points\\results6_minmax\\decoder_epoch_25.pth"
 HELIX_PATH = 'tracks_100k_4sigfig.txt'
 NON_HELIX_PATH = 'sintracks_100k_4sigfig.txt'
 
@@ -194,4 +194,4 @@ if __name__ == '__main__':
     decoder_scheduler = torch.optim.lr_scheduler.MultiStepLR(decoder_optimizer, milestones=[15, 30, 50], gamma=0.1)
     
     test_distance(encoder, decoder, encoder_optimizer, decoder_optimizer, encoder_scheduler, decoder_scheduler, val_dl=dataloader, device=device, 
-                  prev_encoder_path=ENCODER_PATH, prev_decoder_path=DECODER_PATH, data_size=len(dataset), threshold=10)
+                  prev_encoder_path=ENCODER_PATH, prev_decoder_path=DECODER_PATH, data_size=len(dataset), threshold=3)

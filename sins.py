@@ -62,20 +62,114 @@ def fit_params(x,y,z):
     res = scipy.optimize.minimize(chisq,(0,0.69,0.5,0.5,0,0.1),args=(x,y,z),method='Nelder-Mead', bounds = ( (0,0.02),(0,2*np.pi),(0.1,1),(0.1,1.0),(-2.5,2.5),(-1.0,1.0)) )
     return res.x
 
+def fast_fit_params(x, y, z):
+    """
+    x, y, z: np.array([])
+    return:
+    """
+    # ref. 10.1016/0168-9002(88)90722-X
+    r = x**2 + y**2
+    u = x / r
+    v = y / r
+    # assuming the imapact parameter is small
+    # the v = 1/(2b) - u x a/b - u^2 x epsilon x (R/b)^3
+    pp, vv = np.polyfit(u, v, 2, cov=True)
+    b = 0.5 / pp[2]
+    a = -pp[1] * b
+    R = np.sqrt(a**2 + b**2)
+    e = -pp[0] / (R / b) ** 3  # approximately equals to d0
+    dev = 2 * e * R / b**2
+
+    magnetic_field = 2.0
+    pT = magnetic_field * R  # in MeV
+    # print(a, b, R, e, pT)
+
+    p_rz = np.polyfit(np.sqrt(r), z, 2)
+    pp_rz = np.poly1d(p_rz)
+    z0 = pp_rz(abs(e))
+
+    r3 = np.sqrt(r + z**2)
+    p_zr = np.polyfit(r3, z, 2)
+    cos_val = p_zr[0] * z0 + p_zr[1]
+    theta = np.arccos(cos_val)
+    eta = -np.log(np.tan(theta / 2.0))
+    # phi = np.atan2(b, a)
+    phi = np.arctan2(b, a)
+
+    return e,phi,pT,z0,-1.0*eta
+
+def fast_find_phi(r02, d0,phi0,A,omega,dz,tanl):
+
+    ra2 = 0
+    phia=0
+    phib = 0.1
+    xb,yb,zb= track(phib,d0,phi0,A,omega,dz,tanl)
+    rb2 = xb*xb+yb*yb
+
+    while (rb2-ra2>0.01):
+        if (rb2>r02 and ra2<r02):
+            phib = phia + (phib-phia)*(r02-ra2)/(rb2-ra2)
+            xb,yb,zb= track(phib,d0,phi0,A,omega,dz,tanl)
+            rb2 = xb*xb+yb*yb
+        if (rb2<r02 and ra2<r02):
+            phibnew = phia + (phib-phia)*(r02-ra2)/(rb2-ra2)
+            phia = phib
+            ra2 = rb2
+            phib = phibnew
+            xb,yb,zb= track(phib,d0,phi0,A,omega,dz,tanl)
+            rb2 = xb*xb+yb*yb
+        if (rb2>r02 and ra2>r02):
+            phianew = phib + (phia-phib)*(r02-rb2)/(ra2-rb2)
+            phib = phia
+            rb2 = ra2
+            phia = phianew
+            xa,ya,za= track(phia,d0,phi0,A,omega,dz,tanl)
+            ra2 = xa*xa+ya*ya
 
 # find the intersections with the detector layers for these track parameters, add noise
+# def make_hits(params):
+#     xs=[]
+#     ys=[]
+#     zs =[]
+    
+#     for r0 in np.linspace(min_r0,max_r0,nlayers):
+#         phi0 = find_phi(r0*r0,*params)
+#         x0,y0,z0 = track(phi0,*params)
+#         xs.append(x0+np.random.normal(scale=sigma))
+#         ys.append(y0+np.random.normal(scale=sigma))
+#         zs.append(z0+np.random.normal(scale=sigma))
+
+
+#     return xs,ys,zs
+
 def make_hits(params):
     xs=[]
     ys=[]
     zs =[]
-    
+
+    gaussianNoise=False
     for r0 in np.linspace(min_r0,max_r0,nlayers):
         phi0 = find_phi(r0*r0,*params)
+        # print(" r0 = ",r0, " phi0 = ",phi0)
+        # fphi0= fast_find_phi(r0*r0,*params)
+        # print(" fr0 = ",r0, " fphi0 = ",phi0)
         x0,y0,z0 = track(phi0,*params)
-        xs.append(x0+np.random.normal(scale=sigma))
-        ys.append(y0+np.random.normal(scale=sigma))
-        zs.append(z0+np.random.normal(scale=sigma))
 
+        # gaussian noise
+        if (gaussianNoise):
+            xs.append(x0+np.random.normal(scale=sigma))
+            ys.append(y0+np.random.normal(scale=sigma))
+            zs.append(z0+np.random.normal(scale=sigma))
+        # use two gaussians, one wider
+        else:
+            if (np.random.random()>0.25):
+                xs.append(x0+np.random.normal(scale=sigma))
+                ys.append(y0+np.random.normal(scale=sigma))
+                zs.append(z0+np.random.normal(scale=sigma))
+            else:
+                xs.append(x0+np.random.normal(scale=3*sigma))
+                ys.append(y0+np.random.normal(scale=3*sigma))
+                zs.append(z0+np.random.normal(scale=3*sigma))
 
     return xs,ys,zs
 
@@ -192,15 +286,15 @@ def test():
 
 # generate tracks and output them
 tracks = gen_tracks(n=100000)
-f=open("sintracks_100k_4sigfig.txt","w")
+f=open("sintracks_100k_updated_non_gaussian.txt","w")
 for track in tracks:
     params = track[0]
     xs = track[1]
     ys = track[2]
     zs = track[3]
-    f.write("%1.4f, %1.4f, %1.4f, %1.4f, %1.4f, %1.4f\n" % params)
+    f.write("%1.4f, %1.2f, %1.2f, %1.2f, %1.2f, %1.2f\n" % params)
     for i in range(len(xs)):
-        f.write("%1.4f, %1.4f, %1.4f\n" % (xs[i],ys[i],zs[i]))
+        f.write("%1.2f, %1.2f, %1.2f\n" % (xs[i],ys[i],zs[i]))
     f.write("EOT\n\n")
 f.close()
 

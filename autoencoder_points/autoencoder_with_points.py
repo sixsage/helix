@@ -5,6 +5,7 @@ import torch.nn as nn
 from torch.utils.data import Dataset, DataLoader
 from tqdm import tqdm
 import torch.nn.functional as F
+from sklearn.preprocessing import MinMaxScaler
 
 SEED = 172
 torch.manual_seed(SEED)
@@ -19,8 +20,8 @@ EPOCH = 60
 
 RESULTS_PATH = 'autoencoder_points\\results2\\'
 DATASET_PATH = 'tracks_1m_updated.txt'
-ENCODER_RESULTS_PATH = 'autoencoder_points\\results5\\'
-DECODER_RESULTS_PATH = 'autoencoder_points\\results5\\'
+ENCODER_RESULTS_PATH = 'autoencoder_points\\results6_minmax\\'
+DECODER_RESULTS_PATH = 'autoencoder_points\\results6_minmax\\'
 # results5 uses tracks_1m_updated is where only d0 has 4 sigfigs
 # by far, everything 4sigfig has the highest accuracy of 96 percent
 
@@ -34,7 +35,11 @@ class Dataset(Dataset):
         data_points = [dp.strip() for dp in data_points if dp.strip()]
         data_points = [dp.split('\n') for dp in data_points]
         data_points = [[[float(cell) for cell in row.split(', ')] for row in dp] for dp in data_points]
-        self.targets = torch.tensor(np.array([dp[0] for dp in data_points]))
+        targets = np.array([dp[0] for dp in data_points])
+        self.scaler = MinMaxScaler()
+        self.rescaled_targets = self.scaler.fit_transform(targets)
+        self.rescaled_targets = torch.tensor(self.rescaled_targets)
+        self.original_targets = torch.tensor(targets)
         input_points = [dp[1:] for dp in data_points]
         inputs = []
         for input in input_points:
@@ -45,11 +50,11 @@ class Dataset(Dataset):
         self.inputs = torch.tensor(np.array(inputs))
 
     def __len__(self):
-        return len(self.targets)
+        return len(self.rescaled_targets)
 
     def __getitem__(self, idx):
         input = self.inputs[idx]
-        target = self.targets[idx]
+        target = self.rescaled_targets[idx]
         return input, target
     
 class Encoder(nn.Module):

@@ -18,10 +18,13 @@ LEARNING_RATE = 0.001
 EPOCH = 60
 
 RESULTS_PATH = 'autoencoder_points\\results2\\'
-ENCODER_PATH = "autoencoder_points\\results_trig4\\encoder_epoch_60.pth"
-DECODER_PATH = "autoencoder_points\\results_trig4\\decoder_epoch_60.pth"
+ENCODER_PATH = "autoencoder_points\\results_trig5_minmax\\encoder_epoch_55.pth"
+DECODER_PATH = "autoencoder_points\\results_trig5_minmax\\decoder_epoch_55.pth"
 HELIX_PATH = 'tracks_100k_4sigfig.txt'
 NON_HELIX_PATH = 'sintracks_100k_4sigfig.txt'
+
+# results 1 trig minmax non gaussian - 93 percent with threshold = 3
+# results trig 5 minmax with 55th epcoh - 93 percent with threshold = 3
     
 class Dataset(Dataset):
     def __init__(self, helix_path, non_helix_path, transform=None):
@@ -221,4 +224,4 @@ if __name__ == '__main__':
     decoder_scheduler = torch.optim.lr_scheduler.MultiStepLR(decoder_optimizer, milestones=[15, 30, 50], gamma=0.1)
     
     test_distance(encoder, decoder, encoder_optimizer, decoder_optimizer, encoder_scheduler, decoder_scheduler, val_dl=dataloader, device=device, 
-                  prev_encoder_path=ENCODER_PATH, prev_decoder_path=DECODER_PATH, data_size=len(dataset), threshold=15)
+                  prev_encoder_path=ENCODER_PATH, prev_decoder_path=DECODER_PATH, data_size=len(dataset), threshold=2.8)

@@ -5,6 +5,7 @@ import torch.nn as nn
 from torch.utils.data import Dataset, DataLoader
 from tqdm import tqdm
 import torch.nn.functional as F
+from sklearn.preprocessing import MinMaxScaler
 
 SEED = 172
 torch.manual_seed(SEED)
@@ -19,8 +20,8 @@ EPOCH = 60
 
 RESULTS_PATH = 'autoencoder_points\\results2\\'
 DATASET_PATH = 'tracks_1m_updated.txt'
-ENCODER_RESULTS_PATH = 'autoencoder_points\\results_trig4\\'
-DECODER_RESULTS_PATH = 'autoencoder_points\\results_trig4\\'
+ENCODER_RESULTS_PATH = 'not_gaussian\\results1_trig_minmax\\'
+DECODER_RESULTS_PATH = 'not_gaussian\\results1_trig_minmax\\'
     
 class Dataset(Dataset):
     def __init__(self, path, transform=None):
@@ -35,7 +36,11 @@ class Dataset(Dataset):
             input_points = [dp[1:] for dp in data_points]
             targets_2 = np.delete(self.original_targets, 1, 1)
             targets_2 = np.hstack((targets_2, np.cos(self.original_targets[:, 1])[..., None]))
-            self.targets_cos_sin = torch.tensor(np.hstack((targets_2, np.sin(self.original_targets[:, 1])[..., None])))
+            targets_cos_sin = np.hstack((targets_2, np.sin(self.original_targets[:, 1])[..., None]))
+            self.scaler = MinMaxScaler()
+            self.rescaled_targets = self.scaler.fit_transform(targets_cos_sin)
+            self.rescaled_targets = torch.tensor(self.rescaled_targets)
+            self.original_targets = torch.tensor(targets_cos_sin)
             inputs = []
             for input in input_points:
                 combined = []
@@ -46,10 +51,10 @@ class Dataset(Dataset):
             # self.inputs = torch.tensor(np.array(input_points))
 
     def __len__(self):
-        return len(self.original_targets)
+        return len(self.rescaled_targets)
 
     def __getitem__(self, idx):
-        target = self.targets_cos_sin[idx]
+        target = self.rescaled_targets[idx]
         input = self.inputs[idx]
         return input, target
     
@@ -338,10 +343,10 @@ if __name__ == '__main__':
     decoder_criterion = nn.MSELoss()
     encoder_optimizer = torch.optim.Adam(encoder.parameters(), lr = LEARNING_RATE)
     decoder_optimizer = torch.optim.Adam(decoder.parameters(), lr = LEARNING_RATE)
-    # encoder_scheduler = torch.optim.lr_scheduler.MultiStepLR(encoder_optimizer, milestones=[10, 25, 40], gamma=0.5)
-    # decoder_scheduler = torch.optim.lr_scheduler.MultiStepLR(decoder_optimizer, milestones=[10, 25, 40], gamma=0.5)
-    encoder_scheduler = torch.optim.lr_scheduler.MultiStepLR()
-    decoder_scheduler = torch.optim.lr_scheduler.MultiStepLR()
+    encoder_scheduler = torch.optim.lr_scheduler.MultiStepLR(encoder_optimizer, milestones=[10, 25, 40], gamma=0.5)
+    decoder_scheduler = torch.optim.lr_scheduler.MultiStepLR(decoder_optimizer, milestones=[10, 25, 40], gamma=0.5)
+    # encoder_scheduler = torch.optim.lr_scheduler.MultiStepLR()
+    # decoder_scheduler = torch.optim.lr_scheduler.MultiStepLR()
     
     train_encoder_decoder(encoder, decoder, encoder_optimizer, decoder_optimizer, encoder_scheduler, decoder_scheduler, 
                           num_epochs=EPOCH, train_dl=train_dataloader, val_dl=val_dataloader, device=device, 
