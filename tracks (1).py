@@ -1,6 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import scipy.optimize
+import scipy.stats
 
 min_r0=1.0
 max_r0=10.0
@@ -153,29 +154,43 @@ def make_hits(params):
     zs =[]
 
     gaussianNoise=False
-    for r0 in np.linspace(min_r0,max_r0,nlayers):
-        phi0 = find_phi(r0*r0,*params)
-        # print(" r0 = ",r0, " phi0 = ",phi0)
-        # fphi0= fast_find_phi(r0*r0,*params)
-        # print(" fr0 = ",r0, " fphi0 = ",fphi0)
-        x0,y0,z0 = track(phi0,*params)
+    asymmetricNoise = True
+    if asymmetricNoise:
+        skewness = 2
+        for r0 in np.linspace(min_r0,max_r0,nlayers):
+            phi0 = find_phi(r0*r0,*params)
+            # print(" r0 = ",r0, " phi0 = ",phi0)
+            # fphi0= fast_find_phi(r0*r0,*params)
+            # print(" fr0 = ",r0, " fphi0 = ",fphi0)
+            x0,y0,z0 = track(phi0,*params)
 
-        # gaussian noise
-        if (gaussianNoise):
-            xs.append(x0+np.random.normal(scale=sigma))
-            ys.append(y0+np.random.normal(scale=sigma))
-            zs.append(z0+np.random.normal(scale=sigma))
-        # use two gaussians, one wider
-        else:
-            if (np.random.random()>0.25):
+            xs.append(x0 + scipy.stats.skewnorm.rvs(a=skewness, scale=sigma))
+            ys.append(y0 + scipy.stats.skewnorm.rvs(a=skewness, scale=sigma))
+            zs.append(z0 + scipy.stats.skewnorm.rvs(a=skewness, scale=sigma))
+
+    else:
+        for r0 in np.linspace(min_r0,max_r0,nlayers):
+            phi0 = find_phi(r0*r0,*params)
+            # print(" r0 = ",r0, " phi0 = ",phi0)
+            # fphi0= fast_find_phi(r0*r0,*params)
+            # print(" fr0 = ",r0, " fphi0 = ",fphi0)
+            x0,y0,z0 = track(phi0,*params)
+
+            # gaussian noise
+            if (gaussianNoise):
                 xs.append(x0+np.random.normal(scale=sigma))
                 ys.append(y0+np.random.normal(scale=sigma))
                 zs.append(z0+np.random.normal(scale=sigma))
+            # use two gaussians, one wider
             else:
-                xs.append(x0+np.random.normal(scale=6*sigma))
-                ys.append(y0+np.random.normal(scale=6*sigma))
-                zs.append(z0+np.random.normal(scale=6*sigma))
-
+                if (np.random.random()>0.25):
+                    xs.append(x0+np.random.normal(scale=sigma))
+                    ys.append(y0+np.random.normal(scale=sigma))
+                    zs.append(z0+np.random.normal(scale=sigma))
+                else:
+                    xs.append(x0+np.random.normal(scale=6*sigma))
+                    ys.append(y0+np.random.normal(scale=6*sigma))
+                    zs.append(z0+np.random.normal(scale=6*sigma))
 
     return xs,ys,zs
 
@@ -281,8 +296,8 @@ def test():
 # scan()
 
 # generate tracks and output them
-tracks = gen_tracks(n=100000)
-f=open("tracks_1m_updated_non_gaussian_wider.txt","w")
+tracks = gen_tracks(n=1000000)
+f=open("tracks_1m_updated_asymmetric.txt","w")
 for track in tracks:
     params = track[0]
     xs = track[1]
