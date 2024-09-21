@@ -7,7 +7,7 @@ from tqdm import tqdm
 import torch.nn.functional as F
 from sklearn.preprocessing import MinMaxScaler
 
-SEED = 172
+SEED = 0
 torch.manual_seed(SEED)
 torch.cuda.manual_seed_all(SEED)
 np.random.seed(SEED)
@@ -16,12 +16,12 @@ TRAIN_RATIO = 0.8
 BATCH_SIZE = 1024
 LEARNING_RATE = 0.001
 # LEARNING_RATE = 0.001
-EPOCH = 60
+EPOCH = 50
 
 RESULTS_PATH = 'autoencoder_points\\results2\\'
-DATASET_PATH = 'tracks_1m_updated.txt'
-ENCODER_RESULTS_PATH = 'not_gaussian\\results1_trig_minmax\\'
-DECODER_RESULTS_PATH = 'not_gaussian\\results1_trig_minmax\\'
+DATASET_PATH = 'tracks_1m_updated_asymmetric_higher.txt'
+ENCODER_RESULTS_PATH = 'asymmetric\\results1_higher_trig_minmax\\'
+DECODER_RESULTS_PATH = 'asymmetric\\results1_higher_trig_minmax\\'
     
 class Dataset(Dataset):
     def __init__(self, path, transform=None):
@@ -289,25 +289,42 @@ def train_encoder_decoder(encoder, decoder, encoder_optimizer, decoder_optimizer
         # save model
         if epoch % 5 == 0:
             save_path = ENCODER_RESULTS_PATH + f'encoder_epoch_{epoch}.pth'
-            torch.save({
-                'epoch': epoch,
-                'model_state_dict': encoder.state_dict(),
-                'optimizer_state_dict': encoder_optimizer.state_dict(),
-                'loss': encoder_loss.item(),
-                'scheduler': encoder_scheduler.state_dict()
-            }, save_path)
+            if encoder_scheduler:
+                torch.save({
+                    'epoch': epoch,
+                    'model_state_dict': encoder.state_dict(),
+                    'optimizer_state_dict': encoder_optimizer.state_dict(),
+                    'loss': encoder_loss.item(),
+                    'scheduler': encoder_scheduler.state_dict()
+                }, save_path)
+            else:
+                 torch.save({
+                    'epoch': epoch,
+                    'model_state_dict': encoder.state_dict(),
+                    'optimizer_state_dict': encoder_optimizer.state_dict(),
+                    'loss': encoder_loss.item()
+                }, save_path)
             print(f"Encoder saved to {save_path} after epoch {epoch}")
             save_path = DECODER_RESULTS_PATH + f'decoder_epoch_{epoch}.pth'
-            torch.save({
-                'epoch': epoch,
-                'model_state_dict': decoder.state_dict(),
-                'optimizer_state_dict': decoder_optimizer.state_dict(),
-                'loss': decoder_loss.item(),
-                'scheduler': decoder_scheduler.state_dict()
-            }, save_path)
+            if decoder_scheduler:
+                torch.save({
+                    'epoch': epoch,
+                    'model_state_dict': decoder.state_dict(),
+                    'optimizer_state_dict': decoder_optimizer.state_dict(),
+                    'loss': decoder_loss.item(),
+                    'scheduler': decoder_scheduler.state_dict()
+                }, save_path)
+            else:
+                torch.save({
+                    'epoch': epoch,
+                    'model_state_dict': decoder.state_dict(),
+                    'optimizer_state_dict': decoder_optimizer.state_dict(),
+                    'loss': decoder_loss.item()
+                }, save_path)
             print(f"Decoder saved to {save_path} after epoch {epoch}")
-        encoder_scheduler.step()
-        decoder_scheduler.step()
+        if encoder_scheduler and decoder_scheduler:
+            encoder_scheduler.step()
+            decoder_scheduler.step()
 
 if __name__ == '__main__':
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -345,8 +362,8 @@ if __name__ == '__main__':
     decoder_optimizer = torch.optim.Adam(decoder.parameters(), lr = LEARNING_RATE)
     encoder_scheduler = torch.optim.lr_scheduler.MultiStepLR(encoder_optimizer, milestones=[10, 25, 40], gamma=0.5)
     decoder_scheduler = torch.optim.lr_scheduler.MultiStepLR(decoder_optimizer, milestones=[10, 25, 40], gamma=0.5)
-    # encoder_scheduler = torch.optim.lr_scheduler.MultiStepLR()
-    # decoder_scheduler = torch.optim.lr_scheduler.MultiStepLR()
+    # encoder_scheduler = None
+    # decoder_scheduler = None
     
     train_encoder_decoder(encoder, decoder, encoder_optimizer, decoder_optimizer, encoder_scheduler, decoder_scheduler, 
                           num_epochs=EPOCH, train_dl=train_dataloader, val_dl=val_dataloader, device=device, 

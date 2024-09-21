@@ -18,10 +18,10 @@ LEARNING_RATE = 0.001
 EPOCH = 60
 
 RESULTS_PATH = 'autoencoder_points\\results2\\'
-ENCODER_PATH = "autoencoder_points\\results_trig5_minmax\\encoder_epoch_55.pth"
-DECODER_PATH = "autoencoder_points\\results_trig5_minmax\\decoder_epoch_55.pth"
-HELIX_PATH = 'tracks_100k_4sigfig.txt'
-NON_HELIX_PATH = 'sintracks_100k_4sigfig.txt'
+ENCODER_PATH = 'asymmetric\\results1_higher_trig_minmax\\encoder_epoch_50.pth'
+DECODER_PATH = 'asymmetric\\results1_higher_trig_minmax\\decoder_epoch_50.pth'
+HELIX_PATH = 'tracks_100k_updated_asymmetric_higher.txt'
+NON_HELIX_PATH = 'sintracks_100k_updated_asymmetric_higher.txt'
 
 # results 1 trig minmax non gaussian - 93 percent with threshold = 3
 # results trig 5 minmax with 55th epcoh - 93 percent with threshold = 3
@@ -169,12 +169,12 @@ def test_distance(encoder, decoder, encoder_optimizer, decoder_optimizer, encode
         for input, target in val_dl:
             input = input.float().to(device)
             target = target.float().to(device)
-
             output_points = decoder(encoder(input))
             first_dim = torch.numel(output_points)  // 30
             output_points = output_points.reshape(first_dim, 10, 3)
             reshaped_points = input.reshape(first_dim, 10, 3)
             distance = torch.norm(output_points - reshaped_points, 2, dim=(1, 2))
+            # distance = torch.sum(torch.square(output_points - reshaped_points), dim=(1, 2))
             distances[current_size:current_size + distance.shape[0]] = distance
             output = (distance < threshold).float()
             predictions[current_size:current_size + output.shape[0]] = output
@@ -183,6 +183,7 @@ def test_distance(encoder, decoder, encoder_optimizer, decoder_optimizer, encode
 
     print(distances[-1])
     print(distances)
+    print(distances.shape)
     print(torch.mean(distances))
     print("predictions:", predictions)
     print("targets:", targets)
@@ -224,4 +225,4 @@ if __name__ == '__main__':
     decoder_scheduler = torch.optim.lr_scheduler.MultiStepLR(decoder_optimizer, milestones=[15, 30, 50], gamma=0.1)
     
     test_distance(encoder, decoder, encoder_optimizer, decoder_optimizer, encoder_scheduler, decoder_scheduler, val_dl=dataloader, device=device, 
-                  prev_encoder_path=ENCODER_PATH, prev_decoder_path=DECODER_PATH, data_size=len(dataset), threshold=2.8)
+                  prev_encoder_path=ENCODER_PATH, prev_decoder_path=DECODER_PATH, data_size=len(dataset), threshold=4)

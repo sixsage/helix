@@ -72,13 +72,6 @@ def chebyshev(params,x,y,z):
 
     return c2
 
-# calculate the track parameters for a set of spacepoints
-def fit_params(x,y,z, initial_guess, bounds, function):
-
-    res = scipy.optimize.minimize(chisq,initial_guess,args=(x,y,z),method='Nelder-Mead', bounds = bounds )
-    return res.x
-
-
 # find the intersections with the detector layers for these track parameters, add noise
 def make_hits(params):
     xs=[]
@@ -104,19 +97,40 @@ def absolute_sum(prediction, actual):
 def percentage_difference(prediction, actual, epsilon=0.0001):
     return 100 * np.abs(prediction - actual) / (np.abs(actual) + epsilon)
 
-PATH = 'tracks_1m.txt'
+def generate_initial_guesses(min_values, max_values, num_points=4):
+    initial_guesses = []
+    for i in range(num_points):
+        fraction = i / (num_points - 1)
+        initial_guess = min_values + fraction * (max_values - min_values)
+        initial_guesses.append(initial_guess)
+    return initial_guesses
+
+
+def fit_params(x, y, z, parameter_bounds, initial_guesses):
+    best_params = None
+    best_residual = np.inf
+
+    for initial_guess in initial_guesses:
+        res = scipy.optimize.minimize(chisq, initial_guess, args=(x, y, z), method='Nelder-Mead', bounds=parameter_bounds)
+        if res.fun < best_residual:
+            best_residual = res.fun
+            best_params = res.x
+    return best_params
+
+PATH = 'tracks_100k_updated_non_gaussian_wider.txt'
 FUNCTION_TO_TEST = chisq
+
+NUM_POINTS = 200
 
 with open(PATH, 'r') as file:
     content = file.read()
-data_points = content.split('EOT')[:150]
+data_points = content.split('EOT')[:NUM_POINTS]
 
 data_points = [dp.strip() for dp in data_points if dp.strip()]
 data_points = [dp.split('\n') for dp in data_points]
 data_points = [[[float(cell) for cell in row.split(', ')] for row in dp] for dp in data_points]
 targets = [dp[0] for dp in data_points]
 np_targets = np.array(targets)
-print('targets')
 target_average = np.mean(np_targets, axis=0)
 min_per_column = np.min(np_targets, axis=0)
 max_per_column = np.max(np_targets, axis=0)
@@ -129,9 +143,10 @@ outputs = []
 outputs_mae = []
 outputs_abs_sum = []
 i = 0
+initial_guesses = generate_initial_guesses(min_per_column, max_per_column)
 for x, y, z in zip(xs, ys, zs):
     print(i)
-    output = fit_params(x, y, z, target_average, parameter_bounds, FUNCTION_TO_TEST)
+    output = fit_params(x, y, z, parameter_bounds, initial_guesses)
     output = np.array(output)
     outputs.append(percentage_difference(output, np_targets[i]))
     outputs_mae.append(absolute_difference(output, np_targets[i]))
@@ -144,8 +159,6 @@ print(result_percentage)
 
 print('mae')
 result_mae = np.mean(outputs_mae, axis=0)
-min_per_column = np.min(np_targets, axis=0)
-max_per_column = np.max(np_targets, axis=0)
 range_per_column = max_per_column - min_per_column
 print("ranges")
 print(range_per_column)
@@ -154,7 +167,8 @@ percent_error = (result_mae / range_per_column) * 100
 print("percent errors")
 print('mae / range')
 print(percent_error)
-print('smape')
+np.savetxt("temp.txt", percent_error)
+# print('smape')
 # mask = np.array(outputs_abs_sum) != 0
 # print(np.mean(200 * (np.array(outputs_mae)[mask] / np.array(outputs_abs_sum)[mask]), axis=0))
 print(np.min(np_targets, axis=0))

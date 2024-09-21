@@ -156,7 +156,7 @@ def make_hits(params):
     gaussianNoise=False
     asymmetricNoise = True
     if asymmetricNoise:
-        skewness = 2
+        skewness = 4
         for r0 in np.linspace(min_r0,max_r0,nlayers):
             phi0 = find_phi(r0*r0,*params)
             # print(" r0 = ",r0, " phi0 = ",phi0)
@@ -296,8 +296,8 @@ def test():
 # scan()
 
 # generate tracks and output them
-tracks = gen_tracks(n=1000000)
-f=open("tracks_1m_updated_asymmetric.txt","w")
+tracks = gen_tracks(n=100000)
+f=open("tracks_100k_updated_asymmetric_higher.txt","w")
 for track in tracks:
     params = track[0]
     xs = track[1]

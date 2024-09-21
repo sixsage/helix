@@ -300,7 +300,7 @@ def test():
 
 # generate tracks and output them
 tracks = gen_tracks(n=100000)
-f=open("sintracks_100k_updated_asymmetric.txt","w")
+f=open("sintracks_100k_updated_asymmetric_higher.txt","w")
 for track in tracks:
     params = track[0]
     xs = track[1]
