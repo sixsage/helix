@@ -18,10 +18,10 @@ LEARNING_RATE = 0.001
 EPOCH = 60
 
 RESULTS_PATH = 'autoencoder_points\\results2\\'
-ENCODER_PATH = 'asymmetric\\results1_higher_trig_minmax\\encoder_epoch_50.pth'
-DECODER_PATH = 'asymmetric\\results1_higher_trig_minmax\\decoder_epoch_50.pth'
-HELIX_PATH = 'tracks_100k_updated_asymmetric_higher.txt'
-NON_HELIX_PATH = 'sintracks_100k_updated_asymmetric_higher.txt'
+ENCODER_PATH = 'asymmetric\\results2_trig_minmax\\encoder_epoch_50.pth'
+DECODER_PATH = 'asymmetric\\results2_trig_minmax\\decoder_epoch_50.pth'
+HELIX_PATH = 'tracks_100k_updated_asymmetric.txt'
+NON_HELIX_PATH = 'sintracks_100k_updated_asymmetric.txt'
 
 # results 1 trig minmax non gaussian - 93 percent with threshold = 3
 # results trig 5 minmax with 55th epcoh - 93 percent with threshold = 3
