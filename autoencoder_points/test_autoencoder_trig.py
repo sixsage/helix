@@ -5,6 +5,7 @@ import torch.nn as nn
 from torch.utils.data import Dataset, DataLoader
 from tqdm import tqdm
 import torch.nn.functional as F
+from sklearn.metrics import accuracy_score
 
 SEED = 172
 torch.manual_seed(SEED)
@@ -17,14 +18,15 @@ LEARNING_RATE = 0.001
 # LEARNING_RATE = 0.001
 EPOCH = 60
 
-RESULTS_PATH = 'autoencoder_points\\results2\\'
-ENCODER_PATH = 'asymmetric\\results2_trig_minmax\\encoder_epoch_50.pth'
-DECODER_PATH = 'asymmetric\\results2_trig_minmax\\decoder_epoch_50.pth'
-HELIX_PATH = 'tracks_100k_updated_asymmetric.txt'
-NON_HELIX_PATH = 'sintracks_100k_updated_asymmetric.txt'
+ENCODER_PATH = 'asymmetric\\results3_higher_trig_minmax\\encoder_epoch_50.pth'
+DECODER_PATH = 'asymmetric\\results3_higher_trig_minmax\\decoder_epoch_50.pth'
+HELIX_PATH = 'tracks_100k_updated_asymmetric_higher_test.txt'
+NON_HELIX_PATH = 'sintracks_100k_updated_asymmetric_higher_test.txt'
 
-# results 1 trig minmax non gaussian - 93 percent with threshold = 3
-# results trig 5 minmax with 55th epcoh - 93 percent with threshold = 3
+# ENCODER_PATH = 'autoencoder_points\\results_trig8_minmax\\encoder_epoch_50.pth'
+# DECODER_PATH = 'autoencoder_points\\results_trig8_minmax\\decoder_epoch_50.pth'
+# HELIX_PATH = 'tracks_100k_updated_test.txt'
+# NON_HELIX_PATH = 'sintracks_100k_updated_test.txt'
     
 class Dataset(Dataset):
     def __init__(self, helix_path, non_helix_path, transform=None):
@@ -173,7 +175,10 @@ def test_distance(encoder, decoder, encoder_optimizer, decoder_optimizer, encode
             first_dim = torch.numel(output_points)  // 30
             output_points = output_points.reshape(first_dim, 10, 3)
             reshaped_points = input.reshape(first_dim, 10, 3)
-            distance = torch.norm(output_points - reshaped_points, 2, dim=(1, 2))
+            squared_diff = (output_points - reshaped_points) ** 2
+            pairwise_distances = torch.sqrt(squared_diff.sum(dim=-1))
+            distance = pairwise_distances.sum(dim=-1)
+            # distance = torch.norm(output_points - reshaped_points, 2, dim=(1, 2))
             # distance = torch.sum(torch.square(output_points - reshaped_points), dim=(1, 2))
             distances[current_size:current_size + distance.shape[0]] = distance
             output = (distance < threshold).float()
@@ -198,6 +203,11 @@ def test_distance(encoder, decoder, encoder_optimizer, decoder_optimizer, encode
     mask = torch.logical_and(predict_non_helix, wrong)
     print(predictions[mask].size())
     print((predictions == targets).float().mean().item())
+
+    # sanity check
+    predictions_np = predictions.detach().cpu().numpy()
+    targets_np = targets.detach().cpu().numpy()
+    print(accuracy_score(targets_np, predictions_np))
 
 if __name__ == '__main__':
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -225,4 +235,4 @@ if __name__ == '__main__':
     decoder_scheduler = torch.optim.lr_scheduler.MultiStepLR(decoder_optimizer, milestones=[15, 30, 50], gamma=0.1)
     
     test_distance(encoder, decoder, encoder_optimizer, decoder_optimizer, encoder_scheduler, decoder_scheduler, val_dl=dataloader, device=device, 
-                  prev_encoder_path=ENCODER_PATH, prev_decoder_path=DECODER_PATH, data_size=len(dataset), threshold=4)
+                  prev_encoder_path=ENCODER_PATH, prev_decoder_path=DECODER_PATH, data_size=len(dataset), threshold=3.5)

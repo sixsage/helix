@@ -183,14 +183,14 @@ def make_hits(params):
                 zs.append(z0+np.random.normal(scale=sigma))
             # use two gaussians, one wider
             else:
-                if (np.random.random()>0.25):
+                if (np.random.random()>0.5):
                     xs.append(x0+np.random.normal(scale=sigma))
                     ys.append(y0+np.random.normal(scale=sigma))
                     zs.append(z0+np.random.normal(scale=sigma))
                 else:
-                    xs.append(x0+np.random.normal(scale=6*sigma))
-                    ys.append(y0+np.random.normal(scale=6*sigma))
-                    zs.append(z0+np.random.normal(scale=6*sigma))
+                    xs.append(x0+np.random.normal(scale=5*sigma))
+                    ys.append(y0+np.random.normal(scale=5*sigma))
+                    zs.append(z0+np.random.normal(scale=5*sigma))
 
     return xs,ys,zs
 
@@ -297,7 +297,7 @@ def test():
 
 # generate tracks and output them
 tracks = gen_tracks(n=100000)
-f=open("tracks_100k_updated_asymmetric_higher.txt","w")
+f=open("tracks_100k_updated_asymmetric_higher_test.txt","w")
 for track in tracks:
     params = track[0]
     xs = track[1]

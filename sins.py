@@ -150,7 +150,7 @@ def make_hits(params):
     gaussianNoise=False
     asymmetricNoise = True
     if asymmetricNoise:
-        skewness = 2
+        skewness = 4
         for r0 in np.linspace(min_r0,max_r0,nlayers):
             phi0 = find_phi(r0*r0,*params)
             # print(" r0 = ",r0, " phi0 = ",phi0)
@@ -176,14 +176,14 @@ def make_hits(params):
                 zs.append(z0+np.random.normal(scale=sigma))
             # use two gaussians, one wider
             else:
-                if (np.random.random()>0.25):
+                if (np.random.random()>0.5):
                     xs.append(x0+np.random.normal(scale=sigma))
                     ys.append(y0+np.random.normal(scale=sigma))
                     zs.append(z0+np.random.normal(scale=sigma))
                 else:
-                    xs.append(x0+np.random.normal(scale=6*sigma))
-                    ys.append(y0+np.random.normal(scale=6*sigma))
-                    zs.append(z0+np.random.normal(scale=6*sigma))
+                    xs.append(x0+np.random.normal(scale=5*sigma))
+                    ys.append(y0+np.random.normal(scale=5*sigma))
+                    zs.append(z0+np.random.normal(scale=5*sigma))
 
     return xs,ys,zs
 
@@ -300,7 +300,7 @@ def test():
 
 # generate tracks and output them
 tracks = gen_tracks(n=100000)
-f=open("sintracks_100k_updated_asymmetric_higher.txt","w")
+f=open("sintracks_100k_updated_asymmetric_higher_test.txt","w")
 for track in tracks:
     params = track[0]
     xs = track[1]
