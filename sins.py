@@ -148,7 +148,7 @@ def make_hits(params):
     zs =[]
 
     gaussianNoise=False
-    asymmetricNoise = True
+    asymmetricNoise = False
     if asymmetricNoise:
         skewness = 4
         for r0 in np.linspace(min_r0,max_r0,nlayers):
@@ -300,7 +300,7 @@ def test():
 
 # generate tracks and output them
 tracks = gen_tracks(n=100000)
-f=open("sintracks_100k_updated_asymmetric_higher_test.txt","w")
+f=open("sintracks_100k_updated_non_gaussian_wider.txt","w")
 for track in tracks:
     params = track[0]
     xs = track[1]

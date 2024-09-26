@@ -14,13 +14,21 @@ np.random.seed(SEED)
 
 TRAIN_RATIO = 0.8
 BATCH_SIZE = 512
-LEARNING_RATE = 0.001
+LEARNING_RATE = 0.0001
 # LEARNING_RATE = 0.001
-EPOCH = 50
+EPOCH = 100
+
+# DATASET_PATH = 'tracks_1m_updated_non_gaussian_wider.txt'
+# ENCODER_RESULTS_PATH = 'not_gaussian\\results4_trig_wider_minmax\\'
+# DECODER_RESULTS_PATH = 'not_gaussian\\results4_trig_wider_minmax\\'
 
 DATASET_PATH = 'tracks_1m_updated.txt'
-ENCODER_RESULTS_PATH = 'autoencoder_points\\results_trig8_minmax\\'
-DECODER_RESULTS_PATH = 'autoencoder_points\\results_trig8_minmax\\'
+ENCODER_RESULTS_PATH = 'autoencoder_points\\results_trig10_minmax\\'
+DECODER_RESULTS_PATH = 'autoencoder_points\\results_trig10_minmax\\'
+
+# DATASET_PATH = 'tracks_1m_updated_asymmetric_higher.txt'
+# ENCODER_RESULTS_PATH = 'asymmetric\\results4_higher_trig_minmax\\'
+# DECODER_RESULTS_PATH = 'asymmetric\\results4_higher_trig_minmax\\'
     
 class Dataset(Dataset):
     def __init__(self, path, transform=None):
@@ -199,7 +207,7 @@ def train_encoder_decoder(encoder, decoder, encoder_optimizer, decoder_optimizer
             file.write(f"{epoch},{avg_train_loss_encoder:.9f},{avg_val_loss_encoder:.9f}\n")
 
         # save model
-        if epoch % 5 == 0:
+        if epoch >= 40 and epoch % 5 == 0:
             save_path = ENCODER_RESULTS_PATH + f'encoder_epoch_{epoch}.pth'
             if encoder_scheduler:
                 torch.save({
@@ -264,7 +272,7 @@ def train_encoder_decoder(encoder, decoder, encoder_optimizer, decoder_optimizer
             file.write(f"{epoch},{avg_train_loss_decoder:.9f},{avg_val_loss_decoder:.9f}\n")
 
         # save model
-        if epoch % 5 == 0:
+        if epoch >= 40 and epoch % 5 == 0:
             save_path = DECODER_RESULTS_PATH + f'decoder_epoch_{epoch}.pth'
             if decoder_scheduler:
                 torch.save({
@@ -309,10 +317,10 @@ if __name__ == '__main__':
     decoder_criterion = nn.MSELoss()
     encoder_optimizer = torch.optim.Adam(encoder.parameters(), lr = LEARNING_RATE)
     decoder_optimizer = torch.optim.Adam(decoder.parameters(), lr = LEARNING_RATE)
-    encoder_scheduler = torch.optim.lr_scheduler.MultiStepLR(encoder_optimizer, milestones=[10, 20, 30], gamma=0.5)
-    decoder_scheduler = torch.optim.lr_scheduler.MultiStepLR(decoder_optimizer, milestones=[10, 20, 30], gamma=0.5)
-    # encoder_scheduler = None
-    # decoder_scheduler = None
+    # encoder_scheduler = torch.optim.lr_scheduler.MultiStepLR(encoder_optimizer, milestones=[15, 25, 35, 55], gamma=0.5)
+    # decoder_scheduler = torch.optim.lr_scheduler.MultiStepLR(decoder_optimizer, milestones=[15, 25, 35, 55], gamma=0.5)
+    encoder_scheduler = None
+    decoder_scheduler = None
     
     train_encoder_decoder(encoder, decoder, encoder_optimizer, decoder_optimizer, encoder_scheduler, decoder_scheduler, 
                           num_epochs=EPOCH, train_dl=train_dataloader, val_dl=val_dataloader, device=device, 
