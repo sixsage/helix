@@ -14,28 +14,21 @@ np.random.seed(SEED)
 
 TRAIN_RATIO = 0.8
 BATCH_SIZE = 512
-# LEARNING_RATE = 0.0001
 LEARNING_RATE = 0.001
-EPOCH = 50
-REPORT_PATH = 'experiments.txt'
+# LEARNING_RATE = 0.001
+EPOCH = 70
 
-# non_gaussian_wider, regular gaussian - lr = 0.0001, epoch = 100, batch 512, mileston: none
-# asymmetric - lr = 0.001, epoch = 50, batch 512, milestone 10, 20, 30
-
-# DATASET_PATH = 'tracks_1m_updated_non_gaussian_wider.txt'
-# VAL_DATASET_PATH = 'tracks_100k_updated_non_gaussian_wider.txt'
-# ENCODER_RESULTS_PATH = 'not_gaussian\\results6_trig_wider_minmax\\'
-# DECODER_RESULTS_PATH = 'not_gaussian\\results6_trig_wider_minmax\\'
+DATASET_PATH = 'tracks_1m_updated_non_gaussian_wider.txt'
+ENCODER_RESULTS_PATH = 'experiments\\results1_tmn_euclid_non_gaussian\\'
+DECODER_RESULTS_PATH = 'experiments\\results1_tmn_euclid_non_gaussian\\'
 
 # DATASET_PATH = 'tracks_1m_updated.txt'
-# VAL_DATASET_PATH = 'tracks_100k_updated.txt'
-# ENCODER_RESULTS_PATH = 'autoencoder_points\\results_trig11_minmax\\'
-# DECODER_RESULTS_PATH = 'autoencoder_points\\results_trig11_minmax\\'
+# ENCODER_RESULTS_PATH = 'experiments\\results1_tmn_euclid\\'
+# DECODER_RESULTS_PATH = 'experiments\\results1_tmn_euclid\\'
 
-DATASET_PATH = 'tracks_1m_updated_asymmetric_higher.txt'
-VAL_DATASET_PATH = 'tracks_100k_updated_asymmetric_higher.txt'
-ENCODER_RESULTS_PATH = 'asymmetric\\results4_higher_trig_minmax\\'
-DECODER_RESULTS_PATH = 'asymmetric\\results4_higher_trig_minmax\\'
+# DATASET_PATH = 'tracks_1m_updated_asymmetric_higher.txt'
+# ENCODER_RESULTS_PATH = 'asymmetric\\results4_higher_trig_minmax\\'
+# DECODER_RESULTS_PATH = 'asymmetric\\results4_higher_trig_minmax\\'
     
 class Dataset(Dataset):
     def __init__(self, path, transform=None):
@@ -88,6 +81,22 @@ class MSEWithTrigConstraint(nn.Module):
         constraint_loss = torch.abs(ones - norm)
         total_loss += self.trig_lagrangian * torch.mean(constraint_loss)
         return total_loss
+    
+class EuclidExperiment(nn.Module):
+    def __init__(self, device='cuda'):
+        super().__init__()
+        self.device = device
+
+    def euclid(self, prediction, target):
+        prediction_view = prediction.view(prediction.shape[0], 10, 3)
+        target_view = target.view(target.shape[0], 10, 3)
+        distances_between_each_xyz = torch.sqrt(torch.sum((prediction_view - target_view) ** 2, dim=2))
+        avg_distances_between_each_input_point = torch.mean(distances_between_each_xyz, dim=1)
+        avg_distance = torch.mean(avg_distances_between_each_input_point)
+        return avg_distance
+    
+    def forward(self, prediction, target):
+        return self.euclid(prediction, target)
     
 class Encoder(nn.Module):
     def __init__(self):
@@ -300,16 +309,6 @@ def train_encoder_decoder(encoder, decoder, encoder_optimizer, decoder_optimizer
         if encoder_scheduler and decoder_scheduler:
             decoder_scheduler.step()
 
-def writeTrainingInfo(encoder_scheduler, decoder_scheduler):
-    s = f'''For: {ENCODER_RESULTS_PATH}
-# of epochs: {EPOCH}
-learning rate: {LEARNING_RATE}
-batch size: {BATCH_SIZE}
-encoder milestones: {encoder_scheduler.milestones if encoder_scheduler else "None"}
-decoder milestones: {decoder_scheduler.milestones if decoder_scheduler else "None"}\n\n'''
-    with open(REPORT_PATH, 'a') as file:
-        file.write(s)
-
 if __name__ == '__main__':
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     print(f'Using device: {device}')
@@ -317,8 +316,7 @@ if __name__ == '__main__':
     dataset = Dataset(path=DATASET_PATH)
     train_size = int(TRAIN_RATIO * len(dataset))
     val_size = len(dataset) - train_size
-    train_dataset, _ = torch.utils.data.random_split(dataset, [train_size, val_size])
-    val_dataset = Dataset(path=VAL_DATASET_PATH)
+    train_dataset, val_dataset = torch.utils.data.random_split(dataset, [train_size, val_size])
 
     train_dataloader = DataLoader(train_dataset, batch_size=BATCH_SIZE, shuffle=True, num_workers=4)
     val_dataloader = DataLoader(val_dataset, batch_size=BATCH_SIZE, shuffle=False, num_workers=4)
@@ -332,18 +330,14 @@ if __name__ == '__main__':
         encoder.cuda()
         decoder.cuda()
     encoder_criterion = MSEWithTrigConstraint(trig_lagrangian=0.001)
-    decoder_criterion = nn.MSELoss()
+    decoder_criterion = EuclidExperiment()
     encoder_optimizer = torch.optim.Adam(encoder.parameters(), lr = LEARNING_RATE)
     decoder_optimizer = torch.optim.Adam(decoder.parameters(), lr = LEARNING_RATE)
-    # encoder_scheduler = torch.optim.lr_scheduler.MultiStepLR(encoder_optimizer, milestones=[15, 40], gamma=0.1)
-    # decoder_scheduler = torch.optim.lr_scheduler.MultiStepLR(decoder_optimizer, milestones=[15, 40], gamma=0.1)
-    encoder_scheduler = torch.optim.lr_scheduler.MultiStepLR(encoder_optimizer, milestones=[10, 20, 30], gamma=0.5)
-    decoder_scheduler = torch.optim.lr_scheduler.MultiStepLR(decoder_optimizer, milestones=[10, 20, 30], gamma=0.5)
+    encoder_scheduler = torch.optim.lr_scheduler.MultiStepLR(encoder_optimizer, milestones=[10, 20, 30, 45], gamma=0.5)
+    decoder_scheduler = torch.optim.lr_scheduler.MultiStepLR(decoder_optimizer, milestones=[10, 20, 30, 45], gamma=0.5)
     # encoder_scheduler = None
     # decoder_scheduler = None
     
     train_encoder_decoder(encoder, decoder, encoder_optimizer, decoder_optimizer, encoder_scheduler, decoder_scheduler, 
                           num_epochs=EPOCH, train_dl=train_dataloader, val_dl=val_dataloader, device=device, 
                           results_file_encoder=ENCODER_RESULTS_PATH+'encoder_results.csv', results_file_decoder=DECODER_RESULTS_PATH+"decoder_results.csv")
-    
-    writeTrainingInfo(encoder_scheduler, decoder_scheduler)

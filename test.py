@@ -51,12 +51,12 @@ sigma=0.01
 #          [-1.1600,  8.9200,  1.8100],
 #          [-1.7100,  9.8500,  1.9700]]])
 
-array1 = np.random.rand(3, 3, 3)  # Replace this with your actual array1
-array2 = np.random.rand(3, 3, 3) 
+# array1 = np.random.rand(3, 3, 3)  # Replace this with your actual array1
+# array2 = np.random.rand(3, 3, 3) 
 
-print(array1)
-print(array2)
-print(1 * (array2 < 0.5))
+# print(array1)
+# print(array2)
+# print(1 * (array2 < 0.5))
 # # Step 1: Compute pairwise Euclidean distances between the corresponding points
 # distances = np.linalg.norm(array1 - array2, axis=-1)  # Shape (100000, 10)
 # print("distances")
@@ -95,3 +95,16 @@ print(1 * (array2 < 0.5))
 # print(sum_of_distances)
 
 # print(np.concatenate((array1, array2), axis=0))
+
+A = torch.rand(10, 30, requires_grad=True)
+B = torch.rand(10, 30, requires_grad=True)
+
+A_view = A.view(10, 10, 3)
+B_view = B.view(10, 10, 3)
+
+distances = torch.sqrt(torch.sum((A_view - B_view) ** 2, dim=2))
+print(distances)
+distances = torch.mean(distances, dim=1)
+print(distances)
+distances = torch.mean(distances)
+print(distances)

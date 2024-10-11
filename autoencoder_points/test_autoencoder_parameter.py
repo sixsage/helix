@@ -18,8 +18,8 @@ LEARNING_RATE = 0.001
 # LEARNING_RATE = 0.001
 EPOCH = 50
 
-DATASET_PATH = 'tracks_100k_updated_asymmetric_higher.txt'
-ENCODER_PATH = 'asymmetric\\results1_higher_trig_minmax\\encoder_epoch_50.pth'
+DATASET_PATH = 'tracks_100k_updated.txt'
+ENCODER_PATH = 'autoencoder_points\\results_trig10_minmax\\encoder_epoch_100.pth'
     
 class Dataset(Dataset):
     def __init__(self, path, transform=None):

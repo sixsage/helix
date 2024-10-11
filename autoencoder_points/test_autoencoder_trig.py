@@ -18,23 +18,23 @@ LEARNING_RATE = 0.001
 # LEARNING_RATE = 0.001
 EPOCH = 60
 
-# ENCODER_PATH = 'asymmetric\\results3_higher_trig_minmax\\encoder_epoch_50.pth'
-# DECODER_PATH = 'asymmetric\\results3_higher_trig_minmax\\decoder_epoch_50.pth'
-# HELIX_PATH = 'tracks_100k_updated_asymmetric_higher_test.txt'
-# NON_HELIX_PATH = 'sintracks_100k_updated_asymmetric_higher_test.txt'
-# THRESHOLD = 3.5
+ENCODER_PATH = 'asymmetric\\results3_higher_trig_minmax\\encoder_epoch_50.pth'
+DECODER_PATH = 'asymmetric\\results3_higher_trig_minmax\\decoder_epoch_50.pth'
+HELIX_PATH = 'tracks_100k_updated_asymmetric_higher_test.txt'
+NON_HELIX_PATH = 'sintracks_100k_updated_asymmetric_higher_test.txt'
+THRESHOLD = 3.5
 
-# ENCODER_PATH = 'not_gaussian\\results4_trig_wider_minmax\\encoder_epoch_100.pth'
-# DECODER_PATH = 'not_gaussian\\results4_trig_wider_minmax\\decoder_epoch_100.pth'
+# ENCODER_PATH = 'not_gaussian\\results6_trig_wider_minmax\\encoder_epoch_100.pth'
+# DECODER_PATH = 'not_gaussian\\results6_trig_wider_minmax\\decoder_epoch_100.pth'
 # HELIX_PATH = 'tracks_100k_updated_non_gaussian_wider_test.txt'
 # NON_HELIX_PATH = 'sintracks_100k_updated_non_gaussian_wider_test.txt'
-# THRESHOLD = 3.5
+# THRESHOLD = 1.7
 
-# ENCODER_PATH = 'autoencoder_points\\results_trig10_minmax\\encoder_epoch_100.pth'
-# DECODER_PATH = 'autoencoder_points\\results_trig10_minmax\\decoder_epoch_100.pth'
+# ENCODER_PATH = 'autoencoder_points\\results_trig11_minmax\\encoder_epoch_100.pth'
+# DECODER_PATH = 'autoencoder_points\\results_trig11_minmax\\decoder_epoch_100.pth'
 # HELIX_PATH = 'tracks_100k_updated_test.txt'
 # NON_HELIX_PATH = 'sintracks_100k_updated_test.txt'
-# THRESHOLD = 3.5
+# THRESHOLD = 1.5
     
 class Dataset(Dataset):
     def __init__(self, helix_path, non_helix_path, transform=None):
