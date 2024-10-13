@@ -1,7 +1,7 @@
 from xgboost import XGBRegressor
 import numpy as np
 
-TRAIN_PATH = 'tracks_1m_updated_non_gaussian_wider.txt'
+TRAIN_PATH = 'tracks_1m_updated_non_gaussian.txt'
 with open(TRAIN_PATH, 'r') as file:
     content = file.read()
 data_points = content.split('EOT')
@@ -20,10 +20,10 @@ for input in input_points:
     inputs.append(combined)
 inputs = np.array(inputs)
 
-model = XGBRegressor(n_estimators=1500, device="cuda")
+model = XGBRegressor(n_estimators=1000, device="cuda")
 model.fit(inputs, np_targets)
 
-VAL_PATH = 'tracks_100k_updated_non_gaussian_wider.txt'
+VAL_PATH = 'tracks_100k_updated_non_gaussian.txt'
 with open(VAL_PATH, 'r') as file:
     content = file.read()
 data_points = content.split('EOT')
