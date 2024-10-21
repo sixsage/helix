@@ -19,3 +19,24 @@ batch size: 512
 encoder milestones: None
 decoder milestones: None
 
+For: autoencoder_points\results_trig12_minmax\
+# of epochs: 200
+learning rate: 0.001
+batch size: 512
+encoder milestones: Counter({100: 1})
+decoder milestones: Counter({100: 1})
+
+For: autoencoder_points\results_trig13_minmax\
+# of epochs: 300
+learning rate: 0.0001
+batch size: 512
+encoder milestones: None
+decoder milestones: None
+
+For: separated\results1_gaussian\
+# of epochs: 300
+learning rate: 0.0001
+batch size: 512
+encoder milestones: None
+decoder milestones: None
+

@@ -5,18 +5,20 @@ import torch.nn as nn
 from torch.utils.data import Dataset, DataLoader
 from tqdm import tqdm
 import torch.nn.functional as F
+from sklearn.preprocessing import MinMaxScaler
 from sklearn.metrics import accuracy_score
 
-SEED = 172
+SEED = 0
 torch.manual_seed(SEED)
 torch.cuda.manual_seed_all(SEED)
 np.random.seed(SEED)
 
 TRAIN_RATIO = 0.8
-BATCH_SIZE = 1024
-LEARNING_RATE = 0.001
+BATCH_SIZE = 512
+LEARNING_RATE = 0.0001
 # LEARNING_RATE = 0.001
-EPOCH = 60
+EPOCH = 300
+REPORT_PATH = 'experiments.txt'
 
 # ENCODER_PATH = 'asymmetric\\results3_higher_trig_minmax\\encoder_epoch_50.pth'
 # DECODER_PATH = 'asymmetric\\results3_higher_trig_minmax\\decoder_epoch_50.pth'
@@ -30,11 +32,11 @@ EPOCH = 60
 # NON_HELIX_PATH = 'sintracks_100k_updated_non_gaussian_wider_test.txt'
 # THRESHOLD = 1.7
 
-ENCODER_PATH = 'autoencoder_points\\results_trig12_minmax\\encoder_epoch_200.pth'
-DECODER_PATH = 'autoencoder_points\\results_trig12_minmax\\decoder_epoch_200.pth'
+ENCODER_PATH = 'separated\\results1_gaussian\\encoder_epoch_300.pth'
+DECODER_PATH = 'separated\\results1_gaussian\\decoder_epoch_300.pth'
 HELIX_PATH = 'tracks_100k_updated_test.txt'
 NON_HELIX_PATH = 'sintracks_100k_updated_test.txt'
-THRESHOLD = 1.5
+THRESHOLD = 2
     
 class Dataset(Dataset):
     def __init__(self, helix_path, non_helix_path, transform=None):
@@ -49,14 +51,30 @@ class Dataset(Dataset):
             input_points = [dp[1:] for dp in helix_data_points]
             targets_2 = np.delete(self.original_helix_targets, 1, 1)
             targets_2 = np.hstack((targets_2, np.cos(self.original_helix_targets[:, 1])[..., None]))
-            self.helix_targets_cos_sin = torch.tensor(np.hstack((targets_2, np.sin(self.original_helix_targets[:, 1])[..., None])))
-            helix_inputs = []
+            self.helix_targets_cos_sin = torch.tensor(np.hstack((targets_2, np.sin(self.original_helix_targets[:, 1])[..., None]))) # targets are not updated to get separate for xy and z
+
+            self.xy_coordinates_helical = []
+            self.z_coordinates_helical = []
+            self.xyz_coordinates_helical = []
             for input in input_points:
+                combined_xy = []
+                combined_z = []
                 combined = []
-                for coordinate in input:
-                    combined += coordinate
-                helix_inputs.append(combined)
-            self.helix_inputs = torch.tensor(np.array(helix_inputs))
+                for x, y, z in input:
+                    combined_xy.append(x)
+                    combined_xy.append(y)
+
+                    combined_z.append(z)
+
+                    combined.append(x)
+                    combined.append(y)
+                    combined.append(z)
+                self.xy_coordinates_helical.append(combined_xy)
+                self.z_coordinates_helical.append(combined_z)
+                self.xyz_coordinates_helical.append(combined)
+            self.xy_coordinates_helical = torch.tensor(np.array(self.xy_coordinates_helical))
+            self.z_coordinates_helical = torch.tensor(np.array(self.z_coordinates_helical))
+            self.xyz_coordinates_helical = torch.tensor(np.array(self.xyz_coordinates_helical))
             # self.inputs = torch.tensor(np.array(input_points))
 
         with open(non_helix_path, 'r') as file:
@@ -67,23 +85,46 @@ class Dataset(Dataset):
         non_helix_data_points = [dp.split('\n') for dp in non_helix_data_points]
         non_helix_data_points = [[[float(cell) for cell in row.split(', ')] for row in dp] for dp in non_helix_data_points]
         non_helix_input_points = [dp[1:] for dp in non_helix_data_points]
-        non_helix_inputs = []
+
+        self.xy_coordinates_non_helical = []
+        self.z_coordinates_non_helical = []
+        self.xyz_coordinates_non_helical = []
         for helix_input in non_helix_input_points:
+            combined_xy = []
+            combined_z = []
             combined = []
-            for coordinate in helix_input:
-                combined += coordinate
-            non_helix_inputs.append(combined)
-        self.non_helix_inputs = torch.tensor(np.array(non_helix_inputs))
-        self.combined = torch.cat((self.helix_inputs, self.non_helix_inputs), dim=0)
-        self.change = self.helix_inputs.size()[0]
+            for x, y, z in helix_input:
+                combined_xy.append(x)
+                combined_xy.append(y)
+
+                combined_z.append(z)
+
+                combined.append(x)
+                combined.append(y)
+                combined.append(z)
+
+            self.xy_coordinates_non_helical.append(combined_xy)
+            self.z_coordinates_non_helical.append(combined_z)
+            self.xyz_coordinates_non_helical.append(combined)
+
+        self.xy_coordinates_non_helical = torch.tensor(np.array(self.xy_coordinates_non_helical))
+        self.z_coordinates_non_helical = torch.tensor(np.array(self.z_coordinates_non_helical))
+        self.xyz_coordinates_non_helical = torch.tensor(np.array(self.xyz_coordinates_non_helical))
+
+        self.combined_xyz = torch.cat((self.xyz_coordinates_helical, self.xyz_coordinates_non_helical), dim=0)
+        self.combined_xy = torch.cat((self.xy_coordinates_helical, self.xy_coordinates_non_helical), dim=0)
+        self.combined_z = torch.cat((self.z_coordinates_helical, self.z_coordinates_non_helical), dim=0)
+        self.change = self.xyz_coordinates_helical.size()[0]
 
     def __len__(self):
-        return self.combined.size()[0]
+        return self.combined_xyz.size()[0]
 
     def __getitem__(self, idx):
         target = 1 if idx < self.change else 0
-        input = self.combined[idx]
-        return input, target
+        input_xy = self.combined_xy[idx]
+        input_z = self.combined_z[idx]
+        input_xyz = self.combined_xyz[idx]
+        return input_xy, input_z, input_xyz, target
     
 class MSEWithTrigConstraint(nn.Module):
     def __init__(self, trig_lagrangian=1, device='cuda'):
@@ -94,8 +135,8 @@ class MSEWithTrigConstraint(nn.Module):
     
     def forward(self, prediction, target):
         total_loss = self.mse_loss(prediction, target)
-        cos_values = prediction[:, 4]
-        sin_values = prediction[:, 5]
+        cos_values = prediction[:, -2]
+        sin_values = prediction[:, -1]
         norm = torch.sqrt(torch.square(cos_values) + torch.square(sin_values)).to(self.device)
         ones = torch.ones(*norm.size()).to(self.device)
         constraint_loss = torch.abs(ones - norm)
@@ -108,26 +149,42 @@ class Encoder(nn.Module):
         # self.layer1 = nn.Linear(30, 32)
         # self.layer2 = nn.Linear(32, 64)
         # self.layer3 = nn.Linear(64, 5)
-        self.layer1 = nn.Linear(30, 200)
-        self.layer2 = nn.Linear(200, 400)
-        self.layer3 = nn.Linear(400, 800)
-        self.layer4 = nn.Linear(800, 800)
-        self.layer5 = nn.Linear(800, 800)
-        self.layer6 = nn.Linear(800, 400)
-        self.layer7 = nn.Linear(400, 200)
-        self.output_layer = nn.Linear(200, 6)
+        self.layer1_xy = nn.Linear(20, 200)
+        self.layer2_xy = nn.Linear(200, 400)
+        self.layer3_xy = nn.Linear(400, 800)
+        self.layer4_xy = nn.Linear(800, 800)
+        self.layer5_xy = nn.Linear(800, 800)
+        self.layer6_xy = nn.Linear(800, 400)
+        self.layer7_xy = nn.Linear(400, 200)
+        self.output_layer_xy = nn.Linear(200, 4)
+
+        self.layer1_z = nn.Linear(10, 200)
+        self.layer2_z = nn.Linear(200, 400)
+        self.layer3_z = nn.Linear(400, 800)
+        self.layer4_z = nn.Linear(800, 800)
+        self.layer5_z = nn.Linear(800, 400)
+        self.layer6_z = nn.Linear(400, 200)
+        self.output_layer_z = nn.Linear(200, 3)
 
 
-    def forward(self, x):
-        x = F.leaky_relu(self.layer1(x))
-        x = F.leaky_relu(self.layer2(x))
-        x = F.leaky_relu(self.layer3(x))
-        x = F.leaky_relu(self.layer4(x))
-        x = F.leaky_relu(self.layer5(x))
-        x = F.leaky_relu(self.layer6(x))
-        x = F.leaky_relu(self.layer7(x))
-        x = self.output_layer(x)
-        return x
+    def forward(self, xy_input, z_input):
+        xy = F.leaky_relu(self.layer1_xy(xy_input))
+        xy = F.leaky_relu(self.layer2_xy(xy))
+        xy = F.leaky_relu(self.layer3_xy(xy))
+        xy = F.leaky_relu(self.layer4_xy(xy))
+        xy = F.leaky_relu(self.layer5_xy(xy))
+        xy = F.leaky_relu(self.layer6_xy(xy))
+        xy = F.leaky_relu(self.layer7_xy(xy))
+        xy = self.output_layer_xy(xy)
+
+        z = F.leaky_relu(self.layer1_z(z_input))
+        z = F.leaky_relu(self.layer2_z(z))
+        z = F.leaky_relu(self.layer3_z(z))
+        z = F.leaky_relu(self.layer4_z(z))
+        z = F.leaky_relu(self.layer5_z(z))
+        z = F.leaky_relu(self.layer6_z(z))
+        z = self.output_layer_z(z)
+        return xy, z
     
 class Decoder(nn.Module):
 
@@ -176,13 +233,20 @@ def test_distance(encoder, decoder, encoder_optimizer, decoder_optimizer, encode
         targets = torch.zeros(data_size)
         distances = torch.zeros(data_size)
         current_size = 0
-        for input, target in val_dl:
-            input = input.float().to(device)
-            target = target.float().to(device)
-            output_points = decoder(encoder(input))
+        for input_xy, input_z, input_xyz, target in val_dl:
+            input_xy = input_xy.float().to(device)
+            input_z = input_z.float().to(device)
+            input_xyz = input_xyz.float().to(device)
+
+            encoder_output_xy, encoder_output_z = encoder(input_xy, input_z)
+            output_xy_part1 = encoder_output_xy[:, :2]  
+            output_xy_part2 = encoder_output_xy[:, 2:]
+            encoder_output = torch.cat((output_xy_part1, encoder_output_z[:, 1:], output_xy_part2), dim=1).to(device)
+
+            output_points = decoder(encoder_output)
             first_dim = torch.numel(output_points)  // 30
             output_points = output_points.reshape(first_dim, 10, 3)
-            reshaped_points = input.reshape(first_dim, 10, 3)
+            reshaped_points = input_xyz.reshape(first_dim, 10, 3)
             squared_diff = (output_points - reshaped_points) ** 2
             pairwise_distances = torch.sqrt(squared_diff.sum(dim=-1))
             distance = pairwise_distances.sum(dim=-1)

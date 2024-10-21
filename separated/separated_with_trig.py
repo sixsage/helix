@@ -14,9 +14,9 @@ np.random.seed(SEED)
 
 TRAIN_RATIO = 0.8
 BATCH_SIZE = 512
-LEARNING_RATE = 0.0001
-# LEARNING_RATE = 0.001
-EPOCH = 300
+# LEARNING_RATE = 0.0001
+LEARNING_RATE = 0.001
+EPOCH = 200
 REPORT_PATH = 'experiments.txt'
 
 # non_gaussian_wider, regular gaussian - lr = 0.0001, epoch = 100, batch 512, mileston: none
@@ -29,8 +29,8 @@ REPORT_PATH = 'experiments.txt'
 
 DATASET_PATH = 'tracks_1m_updated.txt'
 VAL_DATASET_PATH = 'tracks_100k_updated.txt'
-ENCODER_RESULTS_PATH = 'autoencoder_points\\results_trig13_minmax\\'
-DECODER_RESULTS_PATH = 'autoencoder_points\\results_trig13_minmax\\'
+ENCODER_RESULTS_PATH = 'separated\\results2_gaussian\\'
+DECODER_RESULTS_PATH = 'separated\\results2_gaussian\\'
 
 # DATASET_PATH = 'tracks_1m_updated_asymmetric_higher.txt'
 # VAL_DATASET_PATH = 'tracks_100k_updated_asymmetric_higher.txt'
@@ -55,22 +55,45 @@ class Dataset(Dataset):
             self.rescaled_targets = self.scaler.fit_transform(targets_cos_sin)
             self.rescaled_targets = torch.tensor(self.rescaled_targets)
             self.original_targets = torch.tensor(targets_cos_sin)
-            inputs = []
+
+            # split targets into targets for (x, y) and (z)
+            self.rescaled_targets_xy = self.rescaled_targets[:, [0, 1, 4, 5]]
+            self.rescaled_targets_z = self.rescaled_targets[:, 1:4]
+
+            self.xy_coordinates = []
+            self.z_coordinates = []
+            self.xyz_coordinates = []
             for input in input_points:
+                combined_xy = []
+                combined_z = []
                 combined = []
-                for coordinate in input:
-                    combined += coordinate
-                inputs.append(combined)
-            self.inputs = torch.tensor(np.array(inputs))
+                for x, y, z in input:
+                    combined_xy.append(x)
+                    combined_xy.append(y)
+
+                    combined_z.append(z)
+
+                    combined.append(x)
+                    combined.append(y)
+                    combined.append(z)
+                self.xy_coordinates.append(combined_xy)
+                self.z_coordinates.append(combined_z)
+                self.xyz_coordinates.append(combined)
+            self.xy_coordinates = torch.tensor(np.array(self.xy_coordinates))
+            self.z_coordinates = torch.tensor(np.array(self.z_coordinates))
+            self.xyz_coordinates = torch.tensor(np.array(self.xyz_coordinates))
             # self.inputs = torch.tensor(np.array(input_points))
 
     def __len__(self):
         return len(self.rescaled_targets)
 
     def __getitem__(self, idx):
-        target = self.rescaled_targets[idx]
-        input = self.inputs[idx]
-        return input, target
+        target_xy = self.rescaled_targets_xy[idx]
+        target_z = self.rescaled_targets_z[idx]
+        input_xy = self.xy_coordinates[idx]
+        input_z = self.z_coordinates[idx]
+        input_xyz = self.xyz_coordinates[idx]
+        return input_xy, input_z, input_xyz, target_xy, target_z
     
 class MSEWithTrigConstraint(nn.Module):
     def __init__(self, trig_lagrangian=1, device='cuda'):
@@ -81,8 +104,8 @@ class MSEWithTrigConstraint(nn.Module):
     
     def forward(self, prediction, target):
         total_loss = self.mse_loss(prediction, target)
-        cos_values = prediction[:, 4]
-        sin_values = prediction[:, 5]
+        cos_values = prediction[:, -2]
+        sin_values = prediction[:, -1]
         norm = torch.sqrt(torch.square(cos_values) + torch.square(sin_values)).to(self.device)
         ones = torch.ones(*norm.size()).to(self.device)
         constraint_loss = torch.abs(ones - norm)
@@ -95,26 +118,42 @@ class Encoder(nn.Module):
         # self.layer1 = nn.Linear(30, 32)
         # self.layer2 = nn.Linear(32, 64)
         # self.layer3 = nn.Linear(64, 5)
-        self.layer1 = nn.Linear(30, 200)
-        self.layer2 = nn.Linear(200, 400)
-        self.layer3 = nn.Linear(400, 800)
-        self.layer4 = nn.Linear(800, 800)
-        self.layer5 = nn.Linear(800, 800)
-        self.layer6 = nn.Linear(800, 400)
-        self.layer7 = nn.Linear(400, 200)
-        self.output_layer = nn.Linear(200, 6)
+        self.layer1_xy = nn.Linear(20, 200)
+        self.layer2_xy = nn.Linear(200, 400)
+        self.layer3_xy = nn.Linear(400, 800)
+        self.layer4_xy = nn.Linear(800, 800)
+        self.layer5_xy = nn.Linear(800, 800)
+        self.layer6_xy = nn.Linear(800, 400)
+        self.layer7_xy = nn.Linear(400, 200)
+        self.output_layer_xy = nn.Linear(200, 4)
+
+        self.layer1_z = nn.Linear(10, 200)
+        self.layer2_z = nn.Linear(200, 400)
+        self.layer3_z = nn.Linear(400, 800)
+        self.layer4_z = nn.Linear(800, 800)
+        self.layer5_z = nn.Linear(800, 400)
+        self.layer6_z = nn.Linear(400, 200)
+        self.output_layer_z = nn.Linear(200, 3)
 
 
-    def forward(self, x):
-        x = F.leaky_relu(self.layer1(x))
-        x = F.leaky_relu(self.layer2(x))
-        x = F.leaky_relu(self.layer3(x))
-        x = F.leaky_relu(self.layer4(x))
-        x = F.leaky_relu(self.layer5(x))
-        x = F.leaky_relu(self.layer6(x))
-        x = F.leaky_relu(self.layer7(x))
-        x = self.output_layer(x)
-        return x
+    def forward(self, xy_input, z_input):
+        xy = F.leaky_relu(self.layer1_xy(xy_input))
+        xy = F.leaky_relu(self.layer2_xy(xy))
+        xy = F.leaky_relu(self.layer3_xy(xy))
+        xy = F.leaky_relu(self.layer4_xy(xy))
+        xy = F.leaky_relu(self.layer5_xy(xy))
+        xy = F.leaky_relu(self.layer6_xy(xy))
+        xy = F.leaky_relu(self.layer7_xy(xy))
+        xy = self.output_layer_xy(xy)
+
+        z = F.leaky_relu(self.layer1_z(z_input))
+        z = F.leaky_relu(self.layer2_z(z))
+        z = F.leaky_relu(self.layer3_z(z))
+        z = F.leaky_relu(self.layer4_z(z))
+        z = F.leaky_relu(self.layer5_z(z))
+        z = F.leaky_relu(self.layer6_z(z))
+        z = self.output_layer_z(z)
+        return xy, z
     
 class Decoder(nn.Module):
 
@@ -159,7 +198,7 @@ def train_encoder_decoder(encoder, decoder, encoder_optimizer, decoder_optimizer
         print("No model path provided, starting training from scratch")
         start_epoch = 1
         with open(results_file_encoder, 'a') as file:  # Open the results file in append mode
-            file.write("Epoch,Train Loss,Val Loss\n")  # Write the header
+            file.write("Epoch,Train Loss XY, Val Loss XY, Train Loss Z, Val Loss Z\n")  # Write the header
 
     if prev_decoder_path and os.path.isfile(prev_decoder_path):
         print(f"Loading model from {prev_decoder_path}")
@@ -173,55 +212,69 @@ def train_encoder_decoder(encoder, decoder, encoder_optimizer, decoder_optimizer
         start_epoch = 1
         with open(results_file_decoder, 'a') as file:  # Open the results file in append mode
             file.write("Epoch,Train Loss,Val Loss\n")  # Write the header
+
+    mseLoss = nn.MSELoss()
     
     for epoch in range(start_epoch, num_epochs + 1):
         encoder.train()
-        train_losses_encoder = []
+        train_losses_encoder_xy = []
+        train_losses_encoder_z = []
 
         bar = tqdm(train_dl, desc=f"Epoch {epoch}")
-        for points, params in bar:
-            points = points.float().to(device)
-            params = params.float().to(device)
+        for input_xy, input_z, _, target_xy, target_z in bar:
+            input_xy = input_xy.float().to(device)
+            input_z = input_z.float().to(device)
+            target_xy = target_xy.float().to(device)
+            target_z = target_z.float().to(device)
 
             encoder_optimizer.zero_grad()
-            output = encoder(points)
-            output_copy = output.detach().clone().requires_grad_()
-            encoder_loss = encoder_criterion(output, params)
-            encoder_loss.backward()
+            output_xy, output_z = encoder(input_xy, input_z)
+            encoder_loss_xy = encoder_criterion(output_xy, target_xy)
+            encoder_loss_xy.backward()
+            encoder_loss_z = mseLoss(output_z, target_z)
+            encoder_loss_z.backward()
             encoder_optimizer.step()
 
-            train_losses_encoder.append(encoder_loss.item())
-            bar.set_postfix(loss=np.mean(train_losses_encoder))
+            train_losses_encoder_xy.append(encoder_loss_xy.item())
+            train_losses_encoder_z.append(encoder_loss_z.item())
+            bar.set_postfix(loss=np.mean(train_losses_encoder_xy))
 
-        avg_train_loss_encoder = np.mean(train_losses_encoder)
+        avg_train_loss_encoder_xy = np.mean(train_losses_encoder_xy)
+        avg_train_loss_encoder_z = np.mean(train_losses_encoder_z)
 
         encoder.eval()
         with torch.no_grad():
-            val_losses_encoder = []
-            for points, params in val_dl:
-                points = points.float().to(device)
-                params = params.float().to(device)
+            val_losses_encoder_xy = []
+            val_losses_encoder_z = []
+            for input_xy, input_z, _, target_xy, target_z in val_dl:
+                input_xy = input_xy.float().to(device)
+                input_z = input_z.float().to(device)
+                target_xy = target_xy.float().to(device)
+                target_z = target_z.float().to(device)
 
-                output = encoder(points)
-                val_loss = encoder_criterion(output, params)
+                output_xy, output_z = encoder(input_xy, input_z)
+                val_loss_xy = encoder_criterion(output_xy, target_xy)
+                val_loss_z = mseLoss(output_z, target_z)
 
-                val_losses_encoder.append(val_loss.item())
+                val_losses_encoder_xy.append(val_loss_xy.item())
+                val_losses_encoder_z.append(val_loss_z.item())
 
-        avg_val_loss_encoder = np.mean(val_losses_encoder)
+        avg_val_loss_encoder_xy = np.mean(val_losses_encoder_xy)
+        avg_val_loss_encoder_z = np.mean(val_losses_encoder_z)
 
         # Write epoch results to file
         with open(results_file_encoder, 'a') as file:
-            file.write(f"{epoch},{avg_train_loss_encoder:.9f},{avg_val_loss_encoder:.9f}\n")
+            file.write(f"{epoch},{avg_train_loss_encoder_xy:.9f},{avg_val_loss_encoder_xy:.9f},{avg_train_loss_encoder_z:.9f},{avg_val_loss_encoder_z:.9f}\n")
 
         # save model
-        if epoch >= (3 * EPOCH / 4) and epoch % 5 == 0:
+        if epoch >= (EPOCH - 20) and epoch % 5 == 0:
             save_path = ENCODER_RESULTS_PATH + f'encoder_epoch_{epoch}.pth'
             if encoder_scheduler:
                 torch.save({
                     'epoch': epoch,
                     'model_state_dict': encoder.state_dict(),
                     'optimizer_state_dict': encoder_optimizer.state_dict(),
-                    'loss': encoder_loss.item(),
+                    'loss': encoder_loss_xy.item(),
                     'scheduler': encoder_scheduler.state_dict()
                 }, save_path)
             else:
@@ -229,7 +282,7 @@ def train_encoder_decoder(encoder, decoder, encoder_optimizer, decoder_optimizer
                     'epoch': epoch,
                     'model_state_dict': encoder.state_dict(),
                     'optimizer_state_dict': encoder_optimizer.state_dict(),
-                    'loss': encoder_loss.item()
+                    'loss': encoder_loss_xy.item()
                 }, save_path)
             print(f"Encoder saved to {save_path} after epoch {epoch}")
         if encoder_scheduler and decoder_scheduler:
@@ -240,17 +293,24 @@ def train_encoder_decoder(encoder, decoder, encoder_optimizer, decoder_optimizer
         train_losses_decoder = []
 
         bar = tqdm(train_dl, desc=f"Epoch {epoch}")
-        for points, params in bar:
-            points = points.float().to(device)
-            params = params.float().to(device)
+        for input_xy, input_z, input_xyz, target_xy, target_z in bar:
+            input_xy = input_xy.float().to(device)
+            input_z = input_z.float().to(device)
+            input_xyz = input_xyz.float().to(device)
+            target_xy = target_xy.float().to(device)
+            target_z = target_z.float().to(device)
+
 
             encoder_optimizer.zero_grad()
-            output = encoder(points)
-            output_copy = output.detach().clone().requires_grad_()
+            output_xy, output_z = encoder(input_xy, input_z)
+            output_xy_part1 = output_xy[:, :2]  
+            output_xy_part2 = output_xy[:, 2:] 
 
+            encoder_output = torch.cat((output_xy_part1, output_z[:, 1:], output_xy_part2), dim=1).to(device)
+            
             decoder_optimizer.zero_grad()
-            reconstructed_points = decoder(output_copy)
-            decoder_loss = decoder_criterion(reconstructed_points, points)
+            reconstructed_points = decoder(encoder_output)
+            decoder_loss = decoder_criterion(reconstructed_points, input_xyz)
             decoder_loss.backward()
             decoder_optimizer.step()
 
@@ -262,14 +322,20 @@ def train_encoder_decoder(encoder, decoder, encoder_optimizer, decoder_optimizer
         decoder.eval()
         with torch.no_grad():
             val_losses_decoder = []
-            for points, params in val_dl:
-                points = points.float().to(device)
-                params = params.float().to(device)
+            for input_xy, input_z, input_xyz, target_xy, target_z in val_dl:
+                input_xy = input_xy.float().to(device)
+                input_z = input_z.float().to(device)
+                input_xyz = input_xyz.float().to(device)
+                target_xy = target_xy.float().to(device)
+                target_z = target_z.float().to(device)
 
-                output = encoder(points)
+                output_xy, output_z = encoder(input_xy, input_z)
+                output_xy_part1 = output_xy[:, :2]  
+                output_xy_part2 = output_xy[:, 2:]
+                encoder_output = torch.cat((output_xy_part1, output_z[:, 1:], output_xy_part2), dim=1).to(device)
 
-                reconstructed_points = decoder(output)
-                val_loss_decoder = decoder_criterion(reconstructed_points, points)
+                reconstructed_points = decoder(encoder_output)
+                val_loss_decoder = decoder_criterion(reconstructed_points, input_xyz)
 
                 val_losses_decoder.append(val_loss_decoder.item())
 
@@ -279,7 +345,7 @@ def train_encoder_decoder(encoder, decoder, encoder_optimizer, decoder_optimizer
             file.write(f"{epoch},{avg_train_loss_decoder:.9f},{avg_val_loss_decoder:.9f}\n")
 
         # save model
-        if epoch >= (3 * EPOCH / 4) and epoch % 5 == 0:
+        if epoch >= ( EPOCH - 20) and epoch % 5 == 0:
             save_path = DECODER_RESULTS_PATH + f'decoder_epoch_{epoch}.pth'
             if decoder_scheduler:
                 torch.save({
@@ -337,10 +403,10 @@ if __name__ == '__main__':
     decoder_optimizer = torch.optim.Adam(decoder.parameters(), lr = LEARNING_RATE)
     # encoder_scheduler = torch.optim.lr_scheduler.MultiStepLR(encoder_optimizer, milestones=[15, 40], gamma=0.1)
     # decoder_scheduler = torch.optim.lr_scheduler.MultiStepLR(decoder_optimizer, milestones=[15, 40], gamma=0.1)
-    # encoder_scheduler = torch.optim.lr_scheduler.MultiStepLR(encoder_optimizer, milestones=[100], gamma=0.5)
-    # decoder_scheduler = torch.optim.lr_scheduler.MultiStepLR(decoder_optimizer, milestones=[100], gamma=0.5)
-    encoder_scheduler = None
-    decoder_scheduler = None
+    encoder_scheduler = torch.optim.lr_scheduler.MultiStepLR(encoder_optimizer, milestones=[100], gamma=0.5)
+    decoder_scheduler = torch.optim.lr_scheduler.MultiStepLR(decoder_optimizer, milestones=[100], gamma=0.5)
+    # encoder_scheduler = None
+    # decoder_scheduler = None
     
     train_encoder_decoder(encoder, decoder, encoder_optimizer, decoder_optimizer, encoder_scheduler, decoder_scheduler, 
                           num_epochs=EPOCH, train_dl=train_dataloader, val_dl=val_dataloader, device=device, 

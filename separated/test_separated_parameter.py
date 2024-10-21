@@ -19,8 +19,8 @@ LEARNING_RATE = 0.001
 EPOCH = 50
 
 DATASET_PATH = 'tracks_100k_updated.txt'
-ENCODER_PATH = 'autoencoder_points\\results_trig12_minmax\\encoder_epoch_200.pth'
-    
+ENCODER_PATH = 'separated\\results1_gaussian\\encoder_epoch_300.pth'
+
 class Dataset(Dataset):
     def __init__(self, path, transform=None):
         with open(path, 'r') as file:
@@ -39,22 +39,43 @@ class Dataset(Dataset):
             self.rescaled_targets = self.scaler.fit_transform(targets_cos_sin)
             self.rescaled_targets = torch.tensor(self.rescaled_targets, dtype=torch.float32)
             self.original_targets = torch.tensor(targets_cos_sin, dtype=torch.float32)
-            inputs = []
+
+            # split targets into targets for (x, y) and (z)
+            self.rescaled_targets_xy = self.rescaled_targets[:, [0, 1, 4, 5]]
+            self.rescaled_targets_z = self.rescaled_targets[:, 1:4]
+
+            self.xy_coordinates = []
+            self.z_coordinates = []
+            self.xyz_coordinates = []
             for input in input_points:
+                combined_xy = []
+                combined_z = []
                 combined = []
-                for coordinate in input:
-                    combined += coordinate
-                inputs.append(combined)
-            self.inputs = torch.tensor(np.array(inputs), dtype=torch.float32)
+                for x, y, z in input:
+                    combined_xy.append(x)
+                    combined_xy.append(y)
+
+                    combined_z.append(z)
+
+                    combined.append(x)
+                    combined.append(y)
+                    combined.append(z)
+                self.xy_coordinates.append(combined_xy)
+                self.z_coordinates.append(combined_z)
+                self.xyz_coordinates.append(combined)
+            self.xy_coordinates = torch.tensor(np.array(self.xy_coordinates), dtype=torch.float32)
+            self.z_coordinates = torch.tensor(np.array(self.z_coordinates), dtype=torch.float32)
+            self.xyz_coordinates = torch.tensor(np.array(self.xyz_coordinates), dtype=torch.float32)
             # self.inputs = torch.tensor(np.array(input_points))
 
     def __len__(self):
         return len(self.rescaled_targets)
 
     def __getitem__(self, idx):
+        input_xy = self.xy_coordinates[idx]
+        input_z = self.z_coordinates[idx]
         target = self.original_targets[idx]
-        input = self.inputs[idx]
-        return input, target
+        return input_xy, input_z, target
     
 class MSEWithTrigConstraint(nn.Module):
     def __init__(self, trig_lagrangian=1, device='cuda'):
@@ -65,8 +86,8 @@ class MSEWithTrigConstraint(nn.Module):
     
     def forward(self, prediction, target):
         total_loss = self.mse_loss(prediction, target)
-        cos_values = prediction[:, 4]
-        sin_values = prediction[:, 5]
+        cos_values = prediction[:, -2]
+        sin_values = prediction[:, -1]
         norm = torch.sqrt(torch.square(cos_values) + torch.square(sin_values)).to(self.device)
         ones = torch.ones(*norm.size()).to(self.device)
         constraint_loss = torch.abs(ones - norm)
@@ -79,26 +100,42 @@ class Encoder(nn.Module):
         # self.layer1 = nn.Linear(30, 32)
         # self.layer2 = nn.Linear(32, 64)
         # self.layer3 = nn.Linear(64, 5)
-        self.layer1 = nn.Linear(30, 200)
-        self.layer2 = nn.Linear(200, 400)
-        self.layer3 = nn.Linear(400, 800)
-        self.layer4 = nn.Linear(800, 800)
-        self.layer5 = nn.Linear(800, 800)
-        self.layer6 = nn.Linear(800, 400)
-        self.layer7 = nn.Linear(400, 200)
-        self.output_layer = nn.Linear(200, 6)
+        self.layer1_xy = nn.Linear(20, 200)
+        self.layer2_xy = nn.Linear(200, 400)
+        self.layer3_xy = nn.Linear(400, 800)
+        self.layer4_xy = nn.Linear(800, 800)
+        self.layer5_xy = nn.Linear(800, 800)
+        self.layer6_xy = nn.Linear(800, 400)
+        self.layer7_xy = nn.Linear(400, 200)
+        self.output_layer_xy = nn.Linear(200, 4)
+
+        self.layer1_z = nn.Linear(10, 200)
+        self.layer2_z = nn.Linear(200, 400)
+        self.layer3_z = nn.Linear(400, 800)
+        self.layer4_z = nn.Linear(800, 800)
+        self.layer5_z = nn.Linear(800, 400)
+        self.layer6_z = nn.Linear(400, 200)
+        self.output_layer_z = nn.Linear(200, 3)
 
 
-    def forward(self, x):
-        x = F.leaky_relu(self.layer1(x))
-        x = F.leaky_relu(self.layer2(x))
-        x = F.leaky_relu(self.layer3(x))
-        x = F.leaky_relu(self.layer4(x))
-        x = F.leaky_relu(self.layer5(x))
-        x = F.leaky_relu(self.layer6(x))
-        x = F.leaky_relu(self.layer7(x))
-        x = self.output_layer(x)
-        return x
+    def forward(self, xy_input, z_input):
+        xy = F.leaky_relu(self.layer1_xy(xy_input))
+        xy = F.leaky_relu(self.layer2_xy(xy))
+        xy = F.leaky_relu(self.layer3_xy(xy))
+        xy = F.leaky_relu(self.layer4_xy(xy))
+        xy = F.leaky_relu(self.layer5_xy(xy))
+        xy = F.leaky_relu(self.layer6_xy(xy))
+        xy = F.leaky_relu(self.layer7_xy(xy))
+        xy = self.output_layer_xy(xy)
+
+        z = F.leaky_relu(self.layer1_z(z_input))
+        z = F.leaky_relu(self.layer2_z(z))
+        z = F.leaky_relu(self.layer3_z(z))
+        z = F.leaky_relu(self.layer4_z(z))
+        z = F.leaky_relu(self.layer5_z(z))
+        z = F.leaky_relu(self.layer6_z(z))
+        z = self.output_layer_z(z)
+        return xy, z
     
 class Decoder(nn.Module):
 
@@ -151,10 +188,16 @@ def test_parameters(encoder, encoder_optimizer, dataset, device, prev_encoder_pa
     mae_losses = []
     
     with torch.no_grad():
-        for inputs, targets in dataloader:
-            inputs = inputs.to(device)
+        for input_xy, input_z, targets in dataloader:
+            input_xy = input_xy.to(device)
+            input_z = input_z.to(device)
             targets = targets.to(device)
-            outputs = torch.Tensor.cpu(encoder(inputs))
+
+            outputs_xy, outputs_z = encoder(input_xy, input_z)
+            output_xy_part1 = outputs_xy[:, :2]  
+            output_xy_part2 = outputs_xy[:, 2:] 
+            outputs = torch.cat((output_xy_part1, outputs_z[:, 1:], output_xy_part2), dim=1).to(device)
+            outputs = torch.Tensor.cpu(outputs)
             outputs = dataset.scaler.inverse_transform(outputs)
             predictions_with_sin_cos = torch.tensor(outputs).to(device)
             predictions_with_angle = change_trig_to_angle(predictions_with_sin_cos)

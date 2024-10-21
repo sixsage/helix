@@ -1,110 +1,83 @@
-import torch
+import os
 import numpy as np
-sigma=0.01
+import torch
+import torch.nn as nn
+from torch.utils.data import Dataset, DataLoader
+from tqdm import tqdm
+import torch.nn.functional as F
+from sklearn.preprocessing import MinMaxScaler
 
-# d = torch.tensor([[[ 2.8411e-02, -3.5429e-03,  8.1873e-01],
-#          [ 5.8360e-02,  3.2781e-04,  9.5374e-01],
-#          [ 8.8888e-02, -3.8311e-03,  1.0917e+00],
-#          [ 1.1331e-01, -3.0996e-03,  1.2220e+00],
-#          [ 1.4534e-01, -2.8378e-03,  1.3598e+00],
-#          [ 1.7443e-01, -5.3164e-03,  1.5002e+00],
-#          [ 2.1516e-01, -1.3420e-02,  1.6379e+00],
-#          [ 2.3307e-01,  6.3506e-03,  1.7765e+00],
-#          [ 2.4726e-01,  3.2443e-03,  1.9130e+00],
-#          [ 2.9171e-01,  3.1977e-02,  2.0503e+00]]])
+SEED = 0
+torch.manual_seed(SEED)
+torch.cuda.manual_seed_all(SEED)
+np.random.seed(SEED)
 
-# t = torch.tensor([[[ 0.1900,  0.9800,  0.6900],
-#          [ 0.3200,  1.9800,  0.8300],
-#          [ 0.3400,  2.9800,  0.9800],
-#          [ 0.3100,  3.9800,  1.1200],
-#          [ 0.1800,  4.9900,  1.2600],
-#          [-0.0100,  6.0100,  1.3900],
-#          [-0.3200,  6.9900,  1.5300],
-#          [-0.7000,  7.9500,  1.6700],
-#          [-1.1600,  8.9200,  1.8100],
-#          [-1.7100,  9.8500,  1.9700]]])
+# non_gaussian_wider, regular gaussian - lr = 0.0001, epoch = 100, batch 512, mileston: none
+# asymmetric - lr = 0.001, epoch = 50, batch 512, milestone 10, 20, 30
 
-# print(torch.square(d - t))
-# print(torch.sum(torch.square(d - t)))
-# print(torch.norm(d - t, 2, dim=(1, 2)))
+# DATASET_PATH = 'tracks_1m_updated_non_gaussian_wider.txt'
+# VAL_DATASET_PATH = 'tracks_100k_updated_non_gaussian_wider.txt'
+# ENCODER_RESULTS_PATH = 'not_gaussian\\results6_trig_wider_minmax\\'
+# DECODER_RESULTS_PATH = 'not_gaussian\\results6_trig_wider_minmax\\'
 
-# # Example numpy arrays
-# d = np.array([[[ 2.8411e-02, -3.5429e-03,  8.1873e-01],
-#          [ 5.8360e-02,  3.2781e-04,  9.5374e-01],
-#          [ 8.8888e-02, -3.8311e-03,  1.0917e+00],
-#          [ 1.1331e-01, -3.0996e-03,  1.2220e+00],
-#          [ 1.4534e-01, -2.8378e-03,  1.3598e+00],
-#          [ 1.7443e-01, -5.3164e-03,  1.5002e+00],
-#          [ 2.1516e-01, -1.3420e-02,  1.6379e+00],
-#          [ 2.3307e-01,  6.3506e-03,  1.7765e+00],
-#          [ 2.4726e-01,  3.2443e-03,  1.9130e+00],
-#          [ 2.9171e-01,  3.1977e-02,  2.0503e+00]]])
+DATASET_PATH = 'tracks_1m_updated.txt'
+VAL_DATASET_PATH = 'tracks_100k_updated.txt'
+ENCODER_RESULTS_PATH = 'autoencoder_points\\results_trig13_minmax\\'
+DECODER_RESULTS_PATH = 'autoencoder_points\\results_trig13_minmax\\'
 
-# t = np.array([[[ 0.1900,  0.9800,  0.6900],
-#          [ 0.3200,  1.9800,  0.8300],
-#          [ 0.3400,  2.9800,  0.9800],
-#          [ 0.3100,  3.9800,  1.1200],
-#          [ 0.1800,  4.9900,  1.2600],
-#          [-0.0100,  6.0100,  1.3900],
-#          [-0.3200,  6.9900,  1.5300],
-#          [-0.7000,  7.9500,  1.6700],
-#          [-1.1600,  8.9200,  1.8100],
-#          [-1.7100,  9.8500,  1.9700]]])
+# DATASET_PATH = 'tracks_1m_updated_asymmetric_higher.txt'
+# VAL_DATASET_PATH = 'tracks_100k_updated_asymmetric_higher.txt'
+# ENCODER_RESULTS_PATH = 'asymmetric\\results4_higher_trig_minmax\\'
+# DECODER_RESULTS_PATH = 'asymmetric\\results4_higher_trig_minmax\\'
+    
+class test():
+    def __init__(self, path, transform=None):
+        with open(path, 'r') as file:
+            content = file.read()
+            data_points = content.split('EOT')
 
-# array1 = np.random.rand(3, 3, 3)  # Replace this with your actual array1
-# array2 = np.random.rand(3, 3, 3) 
+            data_points = [dp.strip() for dp in data_points if dp.strip()]
+            data_points = [dp.split('\n') for dp in data_points]
+            data_points = [[[float(cell) for cell in row.split(', ')] for row in dp] for dp in data_points]
+            self.original_targets = np.array([dp[0] for dp in data_points])
+            input_points = [dp[1:] for dp in data_points]
+            targets_2 = np.delete(self.original_targets, 1, 1)
+            targets_2 = np.hstack((targets_2, np.cos(self.original_targets[:, 1])[..., None]))
+            targets_cos_sin = np.hstack((targets_2, np.sin(self.original_targets[:, 1])[..., None]))
+            self.scaler = MinMaxScaler()
+            self.rescaled_targets = self.scaler.fit_transform(targets_cos_sin)
+            self.rescaled_targets = torch.tensor(self.rescaled_targets)
+            self.original_targets = torch.tensor(targets_cos_sin)
 
-# print(array1)
-# print(array2)
-# print(1 * (array2 < 0.5))
-# # Step 1: Compute pairwise Euclidean distances between the corresponding points
-# distances = np.linalg.norm(array1 - array2, axis=-1)  # Shape (100000, 10)
-# print("distances")
-# print(distances)
+            # split targets into targets for (x, y) and (z)
+            self.rescaled_targets_xy = self.rescaled_targets[:, [0, 1, 4, 5]]
+            self.rescaled_targets_z = self.rescaled_targets[:, 1:4]
 
-# # Step 2: Sum distances for each set of 10 points
-# total_distance_per_entry = np.sum(distances, axis=-1)  # Shape (100000,)
-# distances_2 = np.sqrt(np.sum(np.square(array1 - array2), axis=2))
-# # print(distances_2)
+            self.xy_coordinates = []
+            self.z_coordinates = []
+            self.xyz_coordinates = []
+            for input in input_points:
+                combined_xy = []
+                combined_z = []
+                combined = []
+                for x, y, z in input:
+                    combined_xy.append(x)
+                    combined_xy.append(y)
 
-# # Step 3: Sum the total distances over all 100,000 entries
-# # total_distance = np.sum(total_distance_per_entry)
+                    combined_z.append(z)
 
-# print("Total distance:", total_distance_per_entry)
+                    combined.append(x)
+                    combined.append(y)
+                    combined.append(z)
+                self.xy_coordinates.append(combined_xy)
+                self.z_coordinates.append(combined_z)
+                self.xyz_coordinates.append(combined)
+                break
+            self.xy_coordinates = torch.tensor(np.array(self.xy_coordinates))
+            self.z_coordinates = torch.tensor(np.array(self.z_coordinates))
+            self.xyz_coordinates = torch.tensor(np.array(self.xyz_coordinates))
+            print(self.xy_coordinates.size())
 
-# a1_tensor = torch.tensor(array1)
-# a2_tensor = torch.tensor(array2)
-# print("torch")
-# print(torch.norm(a1_tensor - a2_tensor, 2, dim=(1, 2)))
 
-# distances_3 = np.linalg.norm(array1 - array2, axis=(1, 2))
-# print(distances_3)
-# print(np.sum(np.square(d - t)))
-# print(np.linalg.norm(d -t))
-
-# print("#####################################")
-# print(array1 - array2)
-# print(np.square(array1 - array2))
-# print(np.sum(np.square(array1 - array2), axis=2))
-# print(np.sqrt(np.sum(np.square(array1 - array2), axis=2)))
-# print(np.sum(np.sqrt(np.sum(np.square(array1 - array2), axis=2)), axis=1))
-
-# squared_diff = (a1_tensor - a2_tensor) ** 2
-# pairwise_distances = torch.sqrt(squared_diff.sum(dim=-1))
-# sum_of_distances = pairwise_distances.sum(dim=-1)
-# print(sum_of_distances)
-
-# print(np.concatenate((array1, array2), axis=0))
-
-A = torch.rand(10, 30, requires_grad=True)
-B = torch.rand(10, 30, requires_grad=True)
-
-A_view = A.view(10, 10, 3)
-B_view = B.view(10, 10, 3)
-
-distances = torch.sqrt(torch.sum((A_view - B_view) ** 2, dim=2))
-print(distances)
-distances = torch.mean(distances, dim=1)
-print(distances)
-distances = torch.mean(distances)
-print(distances)
+if __name__ == '__main__':
+    test(path=VAL_DATASET_PATH)
