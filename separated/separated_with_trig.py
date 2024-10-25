@@ -14,28 +14,28 @@ np.random.seed(SEED)
 
 TRAIN_RATIO = 0.8
 BATCH_SIZE = 512
-# LEARNING_RATE = 0.0001
-LEARNING_RATE = 0.001
-EPOCH = 200
+LEARNING_RATE = 0.0001
+# LEARNING_RATE = 0.001
+EPOCH = 250
 REPORT_PATH = 'experiments.txt'
 
 # non_gaussian_wider, regular gaussian - lr = 0.0001, epoch = 100, batch 512, mileston: none
 # asymmetric - lr = 0.001, epoch = 50, batch 512, milestone 10, 20, 30
 
-# DATASET_PATH = 'tracks_1m_updated_non_gaussian_wider.txt'
-# VAL_DATASET_PATH = 'tracks_100k_updated_non_gaussian_wider.txt'
-# ENCODER_RESULTS_PATH = 'not_gaussian\\results6_trig_wider_minmax\\'
-# DECODER_RESULTS_PATH = 'not_gaussian\\results6_trig_wider_minmax\\'
+DATASET_PATH = 'tracks_1m_updated_non_gaussian_wider.txt'
+VAL_DATASET_PATH = 'tracks_100k_updated_non_gaussian_wider.txt'
+ENCODER_RESULTS_PATH = 'separated\\not_gaussian\\results3\\'
+DECODER_RESULTS_PATH = 'separated\\not_gaussian\\results3\\'
 
-DATASET_PATH = 'tracks_1m_updated.txt'
-VAL_DATASET_PATH = 'tracks_100k_updated.txt'
-ENCODER_RESULTS_PATH = 'separated\\results2_gaussian\\'
-DECODER_RESULTS_PATH = 'separated\\results2_gaussian\\'
+# DATASET_PATH = 'tracks_1m_updated.txt'
+# VAL_DATASET_PATH = 'tracks_100k_updated.txt'
+# ENCODER_RESULTS_PATH = 'separated\\gaussian\\results2_gaussian\\'
+# DECODER_RESULTS_PATH = 'separated\\gaussian\\results2_gaussian\\'
 
 # DATASET_PATH = 'tracks_1m_updated_asymmetric_higher.txt'
 # VAL_DATASET_PATH = 'tracks_100k_updated_asymmetric_higher.txt'
-# ENCODER_RESULTS_PATH = 'asymmetric\\results4_higher_trig_minmax\\'
-# DECODER_RESULTS_PATH = 'asymmetric\\results4_higher_trig_minmax\\'
+# ENCODER_RESULTS_PATH = 'separated\\asymmetric\\results1\\'
+# DECODER_RESULTS_PATH = 'separated\\asymmetric\\results1\\'
     
 class Dataset(Dataset):
     def __init__(self, path, transform=None):

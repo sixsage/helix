@@ -40,3 +40,31 @@ batch size: 512
 encoder milestones: None
 decoder milestones: None
 
+For: separated\not_gaussian\results1\
+# of epochs: 200
+learning rate: 0.0001
+batch size: 512
+encoder milestones: Counter({100: 1})
+decoder milestones: Counter({100: 1})
+
+For: separated\not_gaussian\results2\
+# of epochs: 300
+learning rate: 0.0001
+batch size: 512
+encoder milestones: None
+decoder milestones: None
+
+For: separated\asymmetric\results1\
+# of epochs: 300
+learning rate: 0.0001
+batch size: 512
+encoder milestones: None
+decoder milestones: None
+
+For: separated\not_gaussian\results3\
+# of epochs: 250
+learning rate: 0.0001
+batch size: 512
+encoder milestones: Counter({100: 1})
+decoder milestones: Counter({100: 1})
+
