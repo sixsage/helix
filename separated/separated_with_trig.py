@@ -15,6 +15,7 @@ np.random.seed(SEED)
 TRAIN_RATIO = 0.8
 BATCH_SIZE = 512
 LEARNING_RATE = 0.0001
+Z_LEARNING_RATE = 0.00005
 # LEARNING_RATE = 0.001
 EPOCH = 250
 REPORT_PATH = 'experiments.txt'
@@ -24,8 +25,8 @@ REPORT_PATH = 'experiments.txt'
 
 DATASET_PATH = 'tracks_1m_updated_non_gaussian_wider.txt'
 VAL_DATASET_PATH = 'tracks_100k_updated_non_gaussian_wider.txt'
-ENCODER_RESULTS_PATH = 'separated\\not_gaussian\\results3\\'
-DECODER_RESULTS_PATH = 'separated\\not_gaussian\\results3\\'
+ENCODER_RESULTS_PATH = 'separated\\not_gaussian\\results4\\'
+DECODER_RESULTS_PATH = 'separated\\not_gaussian\\results4\\'
 
 # DATASET_PATH = 'tracks_1m_updated.txt'
 # VAL_DATASET_PATH = 'tracks_100k_updated.txt'
@@ -126,6 +127,23 @@ class Encoder(nn.Module):
         self.layer6_xy = nn.Linear(800, 400)
         self.layer7_xy = nn.Linear(400, 200)
         self.output_layer_xy = nn.Linear(200, 4)
+        self.xy_encoder = nn.Sequential(
+            self.layer1_xy,
+            nn.LeakyReLU(inplace=True),
+            self.layer2_xy,
+            nn.LeakyReLU(inplace=True),
+            self.layer3_xy,
+            nn.LeakyReLU(inplace=True),
+            self.layer4_xy,
+            nn.LeakyReLU(inplace=True),
+            self.layer5_xy,
+            nn.LeakyReLU(inplace=True),
+            self.layer6_xy,
+            nn.LeakyReLU(inplace=True),
+            self.layer7_xy,
+            nn.LeakyReLU(inplace=True),
+            self.output_layer_xy
+        )
 
         self.layer1_z = nn.Linear(10, 200)
         self.layer2_z = nn.Linear(200, 400)
@@ -135,24 +153,42 @@ class Encoder(nn.Module):
         self.layer6_z = nn.Linear(400, 200)
         self.output_layer_z = nn.Linear(200, 3)
 
+        self.z_encoder = nn.Sequential(
+            self.layer1_z,
+            nn.LeakyReLU(inplace=True),
+            self.layer2_z,
+            nn.LeakyReLU(inplace=True),
+            self.layer3_z,
+            nn.LeakyReLU(inplace=True),
+            self.layer4_z,
+            nn.LeakyReLU(inplace=True),
+            self.layer5_z,
+            nn.LeakyReLU(inplace=True),
+            self.layer6_z,
+            nn.LeakyReLU(inplace=True),
+            self.output_layer_z
+        )
+
 
     def forward(self, xy_input, z_input):
-        xy = F.leaky_relu(self.layer1_xy(xy_input))
-        xy = F.leaky_relu(self.layer2_xy(xy))
-        xy = F.leaky_relu(self.layer3_xy(xy))
-        xy = F.leaky_relu(self.layer4_xy(xy))
-        xy = F.leaky_relu(self.layer5_xy(xy))
-        xy = F.leaky_relu(self.layer6_xy(xy))
-        xy = F.leaky_relu(self.layer7_xy(xy))
-        xy = self.output_layer_xy(xy)
+        # xy = F.leaky_relu(self.layer1_xy(xy_input))
+        # xy = F.leaky_relu(self.layer2_xy(xy))
+        # xy = F.leaky_relu(self.layer3_xy(xy))
+        # xy = F.leaky_relu(self.layer4_xy(xy))
+        # xy = F.leaky_relu(self.layer5_xy(xy))
+        # xy = F.leaky_relu(self.layer6_xy(xy))
+        # xy = F.leaky_relu(self.layer7_xy(xy))
+        # xy = self.output_layer_xy(xy)
 
-        z = F.leaky_relu(self.layer1_z(z_input))
-        z = F.leaky_relu(self.layer2_z(z))
-        z = F.leaky_relu(self.layer3_z(z))
-        z = F.leaky_relu(self.layer4_z(z))
-        z = F.leaky_relu(self.layer5_z(z))
-        z = F.leaky_relu(self.layer6_z(z))
-        z = self.output_layer_z(z)
+        # z = F.leaky_relu(self.layer1_z(z_input))
+        # z = F.leaky_relu(self.layer2_z(z))
+        # z = F.leaky_relu(self.layer3_z(z))
+        # z = F.leaky_relu(self.layer4_z(z))
+        # z = F.leaky_relu(self.layer5_z(z))
+        # z = F.leaky_relu(self.layer6_z(z))
+        # z = self.output_layer_z(z)
+        xy = self.xy_encoder(xy_input)
+        z = self.z_encoder(z_input)
         return xy, z
     
 class Decoder(nn.Module):
@@ -370,6 +406,7 @@ def writeTrainingInfo(encoder_scheduler, decoder_scheduler):
     s = f'''For: {ENCODER_RESULTS_PATH}
 # of epochs: {EPOCH}
 learning rate: {LEARNING_RATE}
+z learning rate: {Z_LEARNING_RATE}
 batch size: {BATCH_SIZE}
 encoder milestones: {encoder_scheduler.milestones if encoder_scheduler else "None"}
 decoder milestones: {decoder_scheduler.milestones if decoder_scheduler else "None"}\n\n'''
@@ -399,7 +436,10 @@ if __name__ == '__main__':
         decoder.cuda()
     encoder_criterion = MSEWithTrigConstraint(trig_lagrangian=0.001)
     decoder_criterion = nn.MSELoss()
-    encoder_optimizer = torch.optim.Adam(encoder.parameters(), lr = LEARNING_RATE)
+    encoder_optimizer = torch.optim.Adam([
+        {'params': encoder.xy_encoder.parameters(), 'lr': LEARNING_RATE},
+        {'params': encoder.z_encoder.parameters(), 'lr': Z_LEARNING_RATE, 'weight_decay': 1e-5}
+    ], lr = LEARNING_RATE)
     decoder_optimizer = torch.optim.Adam(decoder.parameters(), lr = LEARNING_RATE)
     # encoder_scheduler = torch.optim.lr_scheduler.MultiStepLR(encoder_optimizer, milestones=[15, 40], gamma=0.1)
     # decoder_scheduler = torch.optim.lr_scheduler.MultiStepLR(decoder_optimizer, milestones=[15, 40], gamma=0.1)

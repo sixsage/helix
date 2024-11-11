@@ -15,11 +15,13 @@ np.random.seed(SEED)
 TRAIN_RATIO = 0.8
 BATCH_SIZE = 1024
 LEARNING_RATE = 0.001
+Z_LEARNING_RATE = 0.001
 # LEARNING_RATE = 0.001
 EPOCH = 50
 
-DATASET_PATH = 'tracks_100k_updated_asymmetric_higher.txt'
-ENCODER_PATH = 'separated\\asymmetric\\results1\\encoder_epoch_300.pth'
+# DATASET_PATH = 'tracks_100k_updated_asymmetric_higher.txt'
+DATASET_PATH = 'tracks_100k_updated_non_gaussian_wider.txt'
+ENCODER_PATH = 'separated\\not_gaussian\\results4\\encoder_epoch_250.pth'
 
 class Dataset(Dataset):
     def __init__(self, path, transform=None):
@@ -108,6 +110,23 @@ class Encoder(nn.Module):
         self.layer6_xy = nn.Linear(800, 400)
         self.layer7_xy = nn.Linear(400, 200)
         self.output_layer_xy = nn.Linear(200, 4)
+        self.xy_encoder = nn.Sequential(
+            self.layer1_xy,
+            nn.LeakyReLU(inplace=True),
+            self.layer2_xy,
+            nn.LeakyReLU(inplace=True),
+            self.layer3_xy,
+            nn.LeakyReLU(inplace=True),
+            self.layer4_xy,
+            nn.LeakyReLU(inplace=True),
+            self.layer5_xy,
+            nn.LeakyReLU(inplace=True),
+            self.layer6_xy,
+            nn.LeakyReLU(inplace=True),
+            self.layer7_xy,
+            nn.LeakyReLU(inplace=True),
+            self.output_layer_xy
+        )
 
         self.layer1_z = nn.Linear(10, 200)
         self.layer2_z = nn.Linear(200, 400)
@@ -117,24 +136,42 @@ class Encoder(nn.Module):
         self.layer6_z = nn.Linear(400, 200)
         self.output_layer_z = nn.Linear(200, 3)
 
+        self.z_encoder = nn.Sequential(
+            self.layer1_z,
+            nn.LeakyReLU(inplace=True),
+            self.layer2_z,
+            nn.LeakyReLU(inplace=True),
+            self.layer3_z,
+            nn.LeakyReLU(inplace=True),
+            self.layer4_z,
+            nn.LeakyReLU(inplace=True),
+            self.layer5_z,
+            nn.LeakyReLU(inplace=True),
+            self.layer6_z,
+            nn.LeakyReLU(inplace=True),
+            self.output_layer_z
+        )
+
 
     def forward(self, xy_input, z_input):
-        xy = F.leaky_relu(self.layer1_xy(xy_input))
-        xy = F.leaky_relu(self.layer2_xy(xy))
-        xy = F.leaky_relu(self.layer3_xy(xy))
-        xy = F.leaky_relu(self.layer4_xy(xy))
-        xy = F.leaky_relu(self.layer5_xy(xy))
-        xy = F.leaky_relu(self.layer6_xy(xy))
-        xy = F.leaky_relu(self.layer7_xy(xy))
-        xy = self.output_layer_xy(xy)
+        # xy = F.leaky_relu(self.layer1_xy(xy_input))
+        # xy = F.leaky_relu(self.layer2_xy(xy))
+        # xy = F.leaky_relu(self.layer3_xy(xy))
+        # xy = F.leaky_relu(self.layer4_xy(xy))
+        # xy = F.leaky_relu(self.layer5_xy(xy))
+        # xy = F.leaky_relu(self.layer6_xy(xy))
+        # xy = F.leaky_relu(self.layer7_xy(xy))
+        # xy = self.output_layer_xy(xy)
 
-        z = F.leaky_relu(self.layer1_z(z_input))
-        z = F.leaky_relu(self.layer2_z(z))
-        z = F.leaky_relu(self.layer3_z(z))
-        z = F.leaky_relu(self.layer4_z(z))
-        z = F.leaky_relu(self.layer5_z(z))
-        z = F.leaky_relu(self.layer6_z(z))
-        z = self.output_layer_z(z)
+        # z = F.leaky_relu(self.layer1_z(z_input))
+        # z = F.leaky_relu(self.layer2_z(z))
+        # z = F.leaky_relu(self.layer3_z(z))
+        # z = F.leaky_relu(self.layer4_z(z))
+        # z = F.leaky_relu(self.layer5_z(z))
+        # z = F.leaky_relu(self.layer6_z(z))
+        # z = self.output_layer_z(z)
+        xy = self.xy_encoder(xy_input)
+        z = self.z_encoder(z_input)
         return xy, z
     
 class Decoder(nn.Module):
@@ -232,7 +269,10 @@ if __name__ == '__main__':
     if torch.cuda.is_available():
         encoder.cuda()
     encoder_criterion = nn.MSELoss()
-    encoder_optimizer = torch.optim.Adam(encoder.parameters(), lr = LEARNING_RATE)
+    encoder_optimizer = torch.optim.Adam([
+        {'params': encoder.xy_encoder.parameters(), 'lr': LEARNING_RATE},
+        {'params': encoder.z_encoder.parameters(), 'lr': Z_LEARNING_RATE, 'weight_decay': 1e-5}
+    ], lr = LEARNING_RATE)
     encoder_scheduler = torch.optim.lr_scheduler.MultiStepLR(encoder_optimizer, milestones=[15, 30, 50], gamma=0.5)
     
     test_parameters(encoder, encoder_optimizer, dataset, device, prev_encoder_path=ENCODER_PATH)

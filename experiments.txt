@@ -68,3 +68,11 @@ batch size: 512
 encoder milestones: Counter({100: 1})
 decoder milestones: Counter({100: 1})
 
+For: separated\not_gaussian\results4\
+# of epochs: 250
+learning rate: 0.0001
+z learning rate: 5e-05
+batch size: 512
+encoder milestones: Counter({100: 1})
+decoder milestones: Counter({100: 1})
+
