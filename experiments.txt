@@ -76,3 +76,31 @@ batch size: 512
 encoder milestones: Counter({100: 1})
 decoder milestones: Counter({100: 1})
 
+For: variance_predict\mixture\results2\
+# of epochs: 200
+learning rate: 0.0001
+batch size: 512
+encoder milestones: Counter({100: 1})
+decoder milestones: Counter({100: 1})
+
+For: variance_predict\mixture\results3\
+# of epochs: 200
+learning rate: 0.001
+batch size: 512
+encoder milestones: Counter({20: 1, 50: 1, 80: 1})
+decoder milestones: Counter({20: 1, 50: 1, 80: 1})
+
+For: variance_predict\gaussian\results1\
+# of epochs: 120
+learning rate: 0.0001
+batch size: 512
+encoder milestones: Counter({100: 1})
+decoder milestones: Counter({100: 1})
+
+For: variance_predict\gaussian\results1\
+# of epochs: 300
+learning rate: 0.0001
+batch size: 512
+encoder milestones: Counter({100: 1})
+decoder milestones: Counter({100: 1})
+
