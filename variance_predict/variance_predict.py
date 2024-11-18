@@ -15,12 +15,13 @@ np.random.seed(SEED)
 
 TRAIN_RATIO = 0.8
 BATCH_SIZE = 512
-# LEARNING_RATE = 0.0001
-LEARNING_RATE = 0.001
+LEARNING_RATE = 0.0001
+# LEARNING_RATE = 0.001
 EPOCH = 300
 REPORT_PATH = 'experiments.txt'
 
 LOSS_IS_TORCH_GAUSSIAN_NLLL = True
+MSE_PRETRAIN = True
 
 # mixture
 # DATASET_PATH = 'non_gaussian_tracks\\tracks_1M_gaussian_mixturev2.txt'
@@ -30,8 +31,8 @@ LOSS_IS_TORCH_GAUSSIAN_NLLL = True
 
 DATASET_PATH = 'tracks_1m_updated.txt'
 VAL_DATASET_PATH = 'tracks_100k_updated.txt'
-ENCODER_RESULTS_PATH = 'variance_predict\\gaussian\\results2\\'
-DECODER_RESULTS_PATH = 'variance_predict\\gaussian\\results2\\'
+ENCODER_RESULTS_PATH = 'variance_predict\\gaussian\\pretrain_results1\\'
+DECODER_RESULTS_PATH = 'variance_predict\\gaussian\\pretrain_results1\\'
 
 # DATASET_PATH = 'tracks_1m_updated_asymmetric_higher.txt'
 # VAL_DATASET_PATH = 'tracks_100k_updated_asymmetric_higher.txt'
@@ -183,7 +184,10 @@ def train_encoder(encoder, encoder_optimizer, encoder_scheduler, num_epochs, tra
 
             encoder_optimizer.zero_grad()
             mean, variance = encoder(points)
-            encoder_loss = encoder_criterion(mean, params, variance)
+            if MSE_PRETRAIN and epoch < (EPOCH / 2):
+                encoder_loss = mse_loss(mean, params)
+            else:
+                encoder_loss = encoder_criterion(mean, params, variance)
             encoder_loss.backward()
             encoder_optimizer.step()
 
@@ -335,8 +339,8 @@ def train_encoder_decoder(encoder, decoder, encoder_optimizer, decoder_optimizer
     encoder, encoder_optimizer, best_encoder_epoch, best_encoder_loss = train_encoder(encoder, encoder_optimizer, encoder_scheduler, num_epochs, 
                                                train_dl, val_dl, device, results_file_encoder, prev_encoder_path)
     
-    # train_decoder(best_encoder_epoch, encoder, decoder, encoder_optimizer, decoder_optimizer, decoder_scheduler, num_epochs, 
-    #               train_dl, val_dl, device, results_file_decoder, prev_decoder_path)
+    train_decoder(best_encoder_epoch, encoder, decoder, encoder_optimizer, decoder_optimizer, decoder_scheduler, num_epochs, 
+                  train_dl, val_dl, device, results_file_decoder, prev_decoder_path)
 
 def writeTrainingInfo(encoder_scheduler, decoder_scheduler):
     s = f'''For: {ENCODER_RESULTS_PATH}
@@ -375,12 +379,12 @@ if __name__ == '__main__':
     decoder_criterion = nn.MSELoss()
     encoder_optimizer = torch.optim.Adam(encoder.parameters(), lr = LEARNING_RATE)
     decoder_optimizer = torch.optim.Adam(decoder.parameters(), lr = LEARNING_RATE)
-    encoder_scheduler = torch.optim.lr_scheduler.MultiStepLR(encoder_optimizer, milestones=[20, 60,100], gamma=0.5)
-    decoder_scheduler = torch.optim.lr_scheduler.MultiStepLR(decoder_optimizer, milestones=[20, 60,100], gamma=0.5)
+    # encoder_scheduler = torch.optim.lr_scheduler.MultiStepLR(encoder_optimizer, milestones=[20, 60,100], gamma=0.5)
+    # decoder_scheduler = torch.optim.lr_scheduler.MultiStepLR(decoder_optimizer, milestones=[20, 60,100], gamma=0.5)
     # encoder_scheduler = torch.optim.lr_scheduler.MultiStepLR(encoder_optimizer, milestones=[100], gamma=0.5)
     # decoder_scheduler = torch.optim.lr_scheduler.MultiStepLR(decoder_optimizer, milestones=[100], gamma=0.5)
-    # encoder_scheduler = None
-    # decoder_scheduler = None
+    encoder_scheduler = None
+    decoder_scheduler = None
     
     train_encoder_decoder(encoder, decoder, encoder_optimizer, decoder_optimizer, encoder_scheduler, decoder_scheduler, 
                           num_epochs=EPOCH, train_dl=train_dataloader, val_dl=val_dataloader, device=device, 
