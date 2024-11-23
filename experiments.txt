@@ -118,3 +118,31 @@ batch size: 512
 encoder milestones: None
 decoder milestones: None
 
+For: variance_predict\gaussian\pretrain_results2\
+# of epochs: 200
+learning rate: 0.0001
+batch size: 512
+encoder milestones: None
+decoder milestones: None
+
+For: variance_predict\gaussian\weighted_results1\
+# of epochs: 60
+learning rate: 0.001
+batch size: 512
+encoder milestones: Counter({20: 1, 40: 1})
+decoder milestones: None
+
+For: variance_predict\gaussian\weighted_results2\
+# of epochs: 100
+learning rate: 0.0001
+batch size: 512
+encoder milestones: Counter({20: 1, 40: 1})
+decoder milestones: None
+
+For: variance_predict\gaussian\weighted_no_trig_results2\
+# of epochs: 100
+learning rate: 0.0001
+batch size: 512
+encoder milestones: Counter({20: 1, 40: 1})
+decoder milestones: None
+
