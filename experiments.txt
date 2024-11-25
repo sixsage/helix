@@ -146,3 +146,10 @@ batch size: 512
 encoder milestones: Counter({20: 1, 40: 1})
 decoder milestones: None
 
+For: variance_predict\gaussian\weighted_separated_results1\
+# of epochs: 150
+learning rate: 0.0001
+batch size: 512
+encoder milestones: None
+decoder milestones: None
+

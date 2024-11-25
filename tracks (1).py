@@ -194,6 +194,40 @@ def make_hits(params):
 
     return xs,ys,zs
 
+def make_hits_no_noise(params):
+    xs=[]
+    ys=[]
+    zs =[]
+
+    for r0 in np.linspace(min_r0,max_r0,nlayers):
+        phi0 = find_phi(r0*r0,*params)
+        # print(" r0 = ",r0, " phi0 = ",phi0)
+        # fphi0= fast_find_phi(r0*r0,*params)
+        # print(" fr0 = ",r0, " fphi0 = ",fphi0)
+        x0,y0,z0 = track(phi0,*params)
+
+        xs.append(x0)
+        ys.append(y0)
+        zs.append(z0)
+
+    return xs,ys,zs
+
+def gen_tracks_no_noise(n=1):
+    
+    tracks=[]
+    for i in range(n):
+        if (i%1000==0):
+            print("Track %d/%d" % (i,n))
+        d0=np.fabs(np.random.normal(scale=0.01))
+        phi=np.random.uniform(low=0,high=2*np.pi)
+        pt=np.random.uniform(low=25,high=200)
+        dz=np.random.normal(scale=1.0)
+        tanl = np.random.normal(scale=0.3)
+        params=(d0,phi,pt,dz,tanl)
+        xs,ys,zs = make_hits_no_noise(params)
+        tracks.append([params,xs,ys,zs])
+    return tracks
+
 # generate random track parameters and the associated hits
 def gen_tracks(n=1):
     
@@ -296,8 +330,8 @@ def test():
 # scan()
 
 # generate tracks and output them
-tracks = gen_tracks(n=100000)
-f=open("tracks_100k_updated_non_gaussian_wider.txt","w")
+tracks = gen_tracks_no_noise(n=1000000)
+f=open("tracks_1M_updated_no_noise.txt","w")
 for track in tracks:
     params = track[0]
     xs = track[1]
