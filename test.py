@@ -243,16 +243,16 @@ if __name__ == '__main__':
     # print(mse_none(input, target))
     # print(torch.mean(mse_none(input, target)))
     # print(mse_mean(input, target))
-    qwe = torch.tensor([1, 2, 3, 4, 5, 6])
-    asd = torch.tensor([[2, 3, 7, 6, 3, 0]])
-    zxc = torch.tensor([[6, 11, 6, 4, 5, 10]])
-    qwe = torch.zeros((3, 6))
-    asd = torch.tensor([[2, 3, 7, 6, 3, 0]])
-    zxc = torch.tensor([
-        [2, 3, 7, 6, 3, 0],
-        [2, 3, 7, 10, 3, 0],
-        [2, 1, 9, 6, 3, 0]
-    ])
+    # qwe = torch.tensor([1, 2, 3, 4, 5, 6])
+    # asd = torch.tensor([[2, 3, 7, 6, 3, 0]])
+    # zxc = torch.tensor([[6, 11, 6, 4, 5, 10]])
+    # qwe = torch.zeros((3, 6))
+    # asd = torch.tensor([[2, 3, 7, 6, 3, 0]])
+    # zxc = torch.tensor([
+    #     [2, 3, 7, 6, 3, 0],
+    #     [2, 3, 7, 10, 3, 0],
+    #     [2, 1, 9, 6, 3, 0]
+    # ])
 
     # mask1 = ((zxc - asd > 0) & (zxc - asd < 5))
     # print(qwe)
@@ -268,4 +268,24 @@ if __name__ == '__main__':
     # print(result)
     # torch.save(result, 'temp_save\\test.pt')
     # print(torch.load('temp_save\\test.pt'))
-    print(torch.mean(zxc.float(), dim=1))
+    # print(torch.mean(zxc.float(), dim=1))
+
+    # x = torch.randn(10, requires_grad=True)
+    # y = torch.randn(10, requires_grad=True)
+    # z = torch.randn(10, requires_grad=True)
+    # print(x)
+    # print(y)
+    # print(z)
+    # xyz = torch.stack((x, y, z), dim=1)
+    # print(xyz)
+    xs = [torch.randn(1, requires_grad=True) + 1 for _ in range(10)]
+    print(xs)
+    print(torch.stack(xs))
+    ys, zs = [torch.randn(1, requires_grad=True) + 1 for _ in range(10)], [torch.randn(1, requires_grad=True) + 1 for _ in range(10)]
+    xyzs = torch.stack((torch.stack(xs), torch.stack(ys), torch.stack(zs)), dim=1)
+    print(xyzs)
+    print(xyzs.shape)
+    testing = torch.rand(5, 1, requires_grad=True)
+    print(testing.squeeze())
+    testing = [torch.tensor(r, requires_grad=True) for r in torch.linspace(1, 10, 10)]
+    print(testing[0].shape)

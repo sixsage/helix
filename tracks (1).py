@@ -330,8 +330,8 @@ def test():
 # scan()
 
 # generate tracks and output them
-tracks = gen_tracks_no_noise(n=1000000)
-f=open("tracks_1M_updated_no_noise.txt","w")
+tracks = gen_tracks_no_noise(n=2000)
+f=open("tracks_2k_updated_no_noise_precise.txt","w")
 for track in tracks:
     params = track[0]
     xs = track[1]
@@ -339,7 +339,7 @@ for track in tracks:
     zs = track[3]
     f.write("%1.4f, %1.2f, %1.2f, %1.2f, %1.2f\n" % params)
     for i in range(len(xs)):
-        f.write("%1.2f, %1.2f, %1.2f\n" % (xs[i],ys[i],zs[i]))
+        f.write("%1.4f, %1.4f, %1.4f\n" % (xs[i],ys[i],zs[i]))
     f.write("EOT\n\n")
 f.close()
 

@@ -153,3 +153,9 @@ batch size: 512
 encoder milestones: None
 decoder milestones: None
 
+For: general_decoder\general_decoder_results1
+# of epochs: 150
+learning rate: 0.0001
+batch size: 512
+decoder milestones: None
+
