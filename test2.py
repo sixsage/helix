@@ -651,9 +651,8 @@ device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 encoder = Encoder().to(device)
 
 # Define optimizer and loss
-optimizer = optim.Adam(encoder.parameters(), lr=0.0001)
+optimizer = optim.Adam(encoder.parameters(), lr=0.001)
 mse_loss = nn.MSELoss()
-
 
 
 # Pretraining: Define the target helical parameters for pretraining
@@ -699,6 +698,7 @@ for epoch in range(num_epochs):
     input_points = test_train.view(10, 3)
 
     # Compute the loss
+    print(latent_space)
     print(reconstructed_points)
     print(input_points)
     loss = mse_loss(reconstructed_points, input_points)
