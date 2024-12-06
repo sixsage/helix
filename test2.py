@@ -403,6 +403,11 @@ from torch.optim.lr_scheduler import StepLR
 from torch.optim.lr_scheduler import CosineAnnealingLR
 from torch.optim.lr_scheduler import ExponentialLR
 
+SEED = 0
+torch.manual_seed(SEED)
+torch.cuda.manual_seed_all(SEED)
+np.random.seed(SEED)
+
 # Wrap angle to be within [0, 2π]
 def wrap_angle_to_2pi(angle):
     return angle % (2 * torch.pi)
@@ -421,6 +426,40 @@ def compute_3d_track(phi, d0, phi0, pt, dz, tanl):
 def scale_phi(phi_raw):
     return 2 * torch.pi * torch.sigmoid(phi_raw)
 
+def find_phi_inverse(target_radius_squared, d0, phi0, pt, dz, tanl, eps=1e-6):
+    alpha = 1 / 2  # 1/cB
+    q = 1
+    kappa = q / pt
+    rho = alpha / kappa
+    # radius_sqaured == target_radius_squared (try to)
+    # radius_squared == x^2 + y ^ 2
+    # (a − rho * cos(phi0 + phi)) ^ 2 + (c − rho * sin(phi0+phi)) ^ 2 == target_radius_squared
+    # a^2 + c^2 - 2*a*rho*cos(phi0 + phi) - 2*c*rho*sin(phi0+phi) + rho^2 == target_radius_sqaured
+    # a^2 + c^2 + rho^2 - target_radius_squred = 2*a*rho*cos(phi0 + phi) + 2*c*rho*sin(phi0+phi)
+    # (a^2 + c^2 + rho^2 - target_radius_squred) / (2 * rho) = a * cos(phi0 + phi) + c * sin(phi0 + phi)
+    # arctan(c / a) = phi0, hypotenuse = sqrt(a ^ 2 + c ^ 2)
+    # a * cos(phi0 + phi) + c * sin(phi0 + phi) = hypotenuse * cos(phi0 + phi - phi0)
+    # (a^2 + c^2 + rho^2 - target_radius_squred) / (2 * rho) = hypotenuse * cos(phi0 + phi - phi0)
+    # arccos( (a^2 + c^2 + rho^2 - target_radius_squred) / ((2 * rho) * hypotenuse) ) = phi0 + phi - phi0
+    # arccos( (a^2 + c^2 + rho^2 - target_radius_squred) / ((2 * rho) * hypotenuse) ) = phi
+
+    # a = calcualted_term_x, c = calculated_term_y
+
+    calculated_term_x = d0 * torch.cos(phi0) + rho * torch.cos(phi0) 
+    calculated_term_y = d0 * torch.sin(phi0) + rho * torch.sin(phi0)
+
+    hypotenuse = torch.sqrt(calculated_term_x ** 2 + calculated_term_y ** 2)
+
+    arccos_input = (calculated_term_x ** 2 + calculated_term_y ** 2 + rho ** 2 - target_radius_squared) / (2 * rho * hypotenuse)
+    clamped = torch.clamp(arccos_input, min=-1 + eps, max=1-eps) # to avoid nan
+    arccos_term = torch.acos(clamped)
+    phi = arccos_term 
+
+    # print('----------')
+    # print(arccos_input)
+    # print(arccos_term)
+
+    return phi % (2 * torch.pi) # wrap angle
 
 def optimize_phi_differentiable_lbfgs(phi_init, target_radius_squared, d0, phi0, pt, dz, tanl, n_iters=100, lr=0.01, device='cpu'):
 
@@ -535,13 +574,21 @@ def generate_noiseless_hits_sequential(params, min_radius=1.0, max_radius=10.0, 
 
         optimized_phi_values.append(phi)
 
-        print(phi)
+        # print(phi)
         # Compute 3D position with the optimized phi
         x, y, z = compute_3d_track(phi, d0, phi0, pt, dz, tanl)
         xs.append(x)
         ys.append(y)
         zs.append(z)
         total_distance += distance_residual
+
+        # phi2 = find_phi_inverse(target_radius**2, d0, phi0, pt, dz, tanl)
+        # print(phi2)
+        # print('----------')
+        # x, y, z = compute_3d_track(phi2, d0, phi0, pt, dz, tanl)
+        # xs.append(x)
+        # ys.append(y)
+        # zs.append(z)
 
         #print("best phi before scaling ", phi)
 
@@ -698,9 +745,6 @@ for epoch in range(num_epochs):
     input_points = test_train.view(10, 3)
 
     # Compute the loss
-    print(latent_space)
-    print(reconstructed_points)
-    print(input_points)
     loss = mse_loss(reconstructed_points, input_points)
 
     # Backpropagation

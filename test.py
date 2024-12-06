@@ -28,7 +28,7 @@ REPORT_PATH = 'experiments.txt'
 # DECODER_RESULTS_PATH = 'not_gaussian\\results6_trig_wider_minmax\\'
 
 DATASET_PATH = 'tracks_1m_updated.txt'
-VAL_DATASET_PATH = 'tracks_100k_updated.txt'
+VAL_DATASET_PATH = 'tracks_2k_updated_no_noise_precise.txt'
 ENCODER_RESULTS_PATH = 'autoencoder_points\\results_trig13_minmax\\'
 DECODER_RESULTS_PATH = 'autoencoder_points\\results_trig13_minmax\\'
 
@@ -100,10 +100,10 @@ def fast_find_phi_torch(r02, params):
         condition = (rb2 - ra2 <= 0.01)
         finished_phia[condition] = phia[condition]
         updated[condition] = True
-        print(rb2[updated == False])
-        print(ra2[updated == False])
-        print(r02[updated == False])
-        print('while')
+        # print(rb2[updated == False])
+        # print(ra2[updated == False])
+        # print(r02[updated == False])
+        # print('while')
     
     return finished_phia
 
@@ -144,8 +144,6 @@ def fast_find_phi(r02, d0,phi0,pt,dz,tanl):
             phia = phianew
             xa,ya,za= track(phia,d0,phi0,pt,dz,tanl)
             ra2 = xa*xa+ya*ya
-        print('while')
-    print('end')
     return phia
     
 class test():
@@ -210,31 +208,78 @@ class test():
     def __getitem__(self, idx):
         param = self.original_targets[idx]
         return param
+    
+def find_phi_inverse(target_radius_squared, d0, phi0, pt, dz, tanl, eps=1e-6):
+    alpha = 1 / 2  # 1/cB
+    q = 1
+    kappa = q / pt
+    rho = alpha / kappa
+    # radius_sqaured == target_radius_squared (try to)
+    # radius_squared == x^2 + y ^ 2
+    # (a − rho * cos(phi0 + phi)) ^ 2 + (c − rho * sin(phi0+phi)) ^ 2 == target_radius_squared
+    # a^2 + c^2 - 2*a*rho*cos(phi0 + phi) - 2*c*rho*sin(phi0+phi) + rho^2 == target_radius_sqaured
+    # a^2 + c^2 + rho^2 - target_radius_squred = 2*a*rho*cos(phi0 + phi) + 2*c*rho*sin(phi0+phi)
+    # (a^2 + c^2 + rho^2 - target_radius_squred) / (2 * rho) = a * cos(phi0 + phi) + c * sin(phi0 + phi)
+    # arctan(c / a) = phi0, hypotenuse = sqrt(a ^ 2 + c ^ 2)
+    # a * cos(phi0 + phi) + c * sin(phi0 + phi) = hypotenuse * cos(phi0 + phi - phi0)
+    # (a^2 + c^2 + rho^2 - target_radius_squred) / (2 * rho) = hypotenuse * cos(phi0 + phi - phi0)
+    # arccos( (a^2 + c^2 + rho^2 - target_radius_squred) / ((2 * rho) * hypotenuse) ) = phi0 + phi - phi0
+    # arccos( (a^2 + c^2 + rho^2 - target_radius_squred) / ((2 * rho) * hypotenuse) ) = phi
+
+    # a = calcualted_term_x, c = calculated_term_y
+
+    calculated_term_x = d0 * torch.cos(phi0) + rho * torch.cos(phi0) 
+    calculated_term_y = d0 * torch.sin(phi0) + rho * torch.sin(phi0)
+
+    hypotenuse = torch.sqrt(calculated_term_x ** 2 + calculated_term_y ** 2)
+
+    arccos_input = (calculated_term_x ** 2 + calculated_term_y ** 2 + rho ** 2 - target_radius_squared) / (2 * rho * hypotenuse)
+    clamped = torch.clamp(arccos_input, min=-1 + eps, max=1-eps)
+    arccos_term = torch.acos(clamped)
+    phi = arccos_term 
+
+    return phi % (2 * torch.pi) # wrap angle
 
 
 if __name__ == '__main__':
-    # train_dataset = test(path=VAL_DATASET_PATH)
-    # train_dataloader = DataLoader(train_dataset, batch_size=BATCH_SIZE, shuffle=False, num_workers=4)
-    # for params in train_dataloader:
-    #     for r0 in np.linspace(min_r0,max_r0,nlayers):
-    #         print(r0)
-    #         r0_tensor = torch.full((params.shape[0],), r0)
-    #         phi0 = fast_find_phi_torch(r0_tensor * r0_tensor, params)
-    #         x, y, z = track_torch(phi0, params)
-    #     print(x)
-    #     print(y)
-        # params2 = params.tolist()[0]
-        # xs= []
-        # ys= []
-        # zs = []
-        # for r0 in np.linspace(min_r0,max_r0,nlayers):
-        #     phi0 = fast_find_phi(r0 * r0, *params2)
-        #     x, y, z = track(phi0, *params2)
-        #     xs.append(x)
-        #     ys.append(y)
-        #     zs.append(z)
+    train_dataset = test(path=VAL_DATASET_PATH)
+    train_dataloader = DataLoader(train_dataset, batch_size=1, shuffle=False, num_workers=4)
+    i = 0
+    for params in train_dataloader:
+        params2 = params.tolist()[0]
+        xs, ys, zs = [], [], []
+        xs2, ys2, zs2 = [], [], []
+        for r0 in np.linspace(min_r0,max_r0,nlayers):
+            r0_tensor = torch.full((params.shape[0],), r0)
+            phi0 = fast_find_phi(r0 * r0, *params2)
+            print(phi0)
+            d0, phi0, pt, dz, tanl = params[:, 0], params[:, 1], params[:, 2], params[:, 3], params[:, 4]
+            phi_tensor = find_phi_inverse(r0_tensor * r0_tensor, d0, phi0, pt, dz, tanl)
+            print(phi_tensor)
+            # x, y, z = track_torch(phi_tensor, params)
+            # xs.append(x)
+            # ys.append(y)
+            # zs.append(z)
+            # phi_tensor2 = fast_find_phi_torch(r0_tensor * r0_tensor, params)
+            # print(phi_tensor2)
+            # x, y, z = track_torch(phi_tensor2, params)
+            # xs2.append(x)
+            # ys2.append(y)
+            # zs2.append(z)
+            
         # print(xs)
         # print(ys)
+        # print(zs)
+        i += 1
+        # print(xs2)
+        # print(ys2)
+        # print(zs2)
+        # if i == 2:
+        #     print(params)
+        #     print(xs)
+        #     print(ys)
+        #     print(zs)
+        #     break
         
     # input = torch.randn(3, 5, requires_grad=True)
     # target = torch.randn(3, 5)
@@ -278,14 +323,14 @@ if __name__ == '__main__':
     # print(z)
     # xyz = torch.stack((x, y, z), dim=1)
     # print(xyz)
-    xs = [torch.randn(1, requires_grad=True) + 1 for _ in range(10)]
-    print(xs)
-    print(torch.stack(xs))
-    ys, zs = [torch.randn(1, requires_grad=True) + 1 for _ in range(10)], [torch.randn(1, requires_grad=True) + 1 for _ in range(10)]
-    xyzs = torch.stack((torch.stack(xs), torch.stack(ys), torch.stack(zs)), dim=1)
-    print(xyzs)
-    print(xyzs.shape)
-    testing = torch.rand(5, 1, requires_grad=True)
-    print(testing.squeeze())
-    testing = [torch.tensor(r, requires_grad=True) for r in torch.linspace(1, 10, 10)]
-    print(testing[0].shape)
+    # xs = [torch.randn(1, requires_grad=True) + 1 for _ in range(10)]
+    # print(xs)
+    # print(torch.stack(xs))
+    # ys, zs = [torch.randn(1, requires_grad=True) + 1 for _ in range(10)], [torch.randn(1, requires_grad=True) + 1 for _ in range(10)]
+    # xyzs = torch.stack((torch.stack(xs), torch.stack(ys), torch.stack(zs)), dim=1)
+    # print(xyzs)
+    # print(xyzs.shape)
+    # testing = torch.rand(5, 1, requires_grad=True)
+    # print(testing.squeeze())
+    # testing = [torch.tensor(r, requires_grad=True) for r in torch.linspace(1, 10, 10)]
+    # print(testing[0].shape)
