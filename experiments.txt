@@ -159,3 +159,19 @@ learning rate: 0.0001
 batch size: 512
 decoder milestones: None
 
+For: variance_predict\gaussian\vae_results1\
+# of encoder epochs: 60
+# of decoder epochs: 200
+learning rate: 0.0001
+batch size: 512
+encoder milestones: Counter({20: 1, 60: 1, 100: 1})
+decoder milestones: None
+
+For: variance_predict\gaussian\vae_results1\
+# of encoder epochs: 100
+# of decoder epochs: 0
+learning rate: 0.0001
+batch size: 512
+encoder milestones: None
+decoder milestones: None
+

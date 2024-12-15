@@ -195,10 +195,19 @@ class test():
             # self.xyz_coordinates = torch.tensor(np.array(self.xyz_coordinates))
             # print(self.xy_coordinates.size())
             inputs = []
+            xs = []
+            ys = []
+            zs = []
             for input in input_points:
                 combined = []
+                xs = []
+                ys = []
+                zs = []
                 for coordinate in input:
-                    combined += coordinate
+                    x, y, z = coordinate
+                    xs.append(x)
+                    ys.append(y)
+                    zs.append(z)
                 inputs.append(combined)
             self.inputs = torch.tensor(np.array(inputs))
 
@@ -242,20 +251,20 @@ def find_phi_inverse(target_radius_squared, d0, phi0, pt, dz, tanl, eps=1e-6):
 
 
 if __name__ == '__main__':
-    train_dataset = test(path=VAL_DATASET_PATH)
-    train_dataloader = DataLoader(train_dataset, batch_size=1, shuffle=False, num_workers=4)
-    i = 0
-    for params in train_dataloader:
-        params2 = params.tolist()[0]
-        xs, ys, zs = [], [], []
-        xs2, ys2, zs2 = [], [], []
-        for r0 in np.linspace(min_r0,max_r0,nlayers):
-            r0_tensor = torch.full((params.shape[0],), r0)
-            phi0 = fast_find_phi(r0 * r0, *params2)
-            print(phi0)
-            d0, phi0, pt, dz, tanl = params[:, 0], params[:, 1], params[:, 2], params[:, 3], params[:, 4]
-            phi_tensor = find_phi_inverse(r0_tensor * r0_tensor, d0, phi0, pt, dz, tanl)
-            print(phi_tensor)
+    # train_dataset = test(path=VAL_DATASET_PATH)
+    # train_dataloader = DataLoader(train_dataset, batch_size=1, shuffle=False, num_workers=4)
+    # i = 0
+    # for params in train_dataloader:
+    #     params2 = params.tolist()[0]
+    #     xs, ys, zs = [], [], []
+    #     xs2, ys2, zs2 = [], [], []
+    #     for r0 in np.linspace(min_r0,max_r0,nlayers):
+    #         r0_tensor = torch.full((params.shape[0],), r0)
+    #         phi0 = fast_find_phi(r0 * r0, *params2)
+    #         print(phi0)
+    #         d0, phi0, pt, dz, tanl = params[:, 0], params[:, 1], params[:, 2], params[:, 3], params[:, 4]
+    #         phi_tensor = find_phi_inverse(r0_tensor * r0_tensor, d0, phi0, pt, dz, tanl)
+    #         print(phi_tensor)
             # x, y, z = track_torch(phi_tensor, params)
             # xs.append(x)
             # ys.append(y)
@@ -270,7 +279,7 @@ if __name__ == '__main__':
         # print(xs)
         # print(ys)
         # print(zs)
-        i += 1
+
         # print(xs2)
         # print(ys2)
         # print(zs2)
@@ -334,3 +343,18 @@ if __name__ == '__main__':
     # print(testing.squeeze())
     # testing = [torch.tensor(r, requires_grad=True) for r in torch.linspace(1, 10, 10)]
     # print(testing[0].shape)
+
+    batch_size = 2
+    x_list = [torch.randn(batch_size) for _ in range(5)]
+    y_list = [torch.randn(batch_size) for _ in range(5)]
+    z_list = [torch.randn(batch_size) for _ in range(5)]
+
+    # Stack each list along a new dimension (axis 1)
+    x = torch.stack(x_list, dim=1)  # Shape: (batch_size, 10)
+    y = torch.stack(y_list, dim=1)  # Shape: (batch_size, 10)
+    z = torch.stack(z_list, dim=1)  # Shape: (batch_size, 10)
+
+    # Stack x, y, z along the last dimension (axis 2)
+    result = torch.stack([x, y, z], dim=2)  # Shape: (batch_size, 10, 3)
+
+    print(result.shape)  # Should print: torch.Size([batch_size, 10, 3])
