@@ -17,7 +17,7 @@ TRAIN_RATIO = 0.8
 BATCH_SIZE = 512
 LEARNING_RATE = 0.0001
 # LEARNING_RATE = 0.001
-ENCODER_EPOCH = 60
+ENCODER_EPOCH = 100
 DECODER_EPOCH = 0
 REPORT_PATH = 'experiments.txt'
 
@@ -33,7 +33,7 @@ KLD_WEIGHT = 1e-6
 
 DATASET_PATH = 'tracks_1M_updated.txt'
 VAL_DATASET_PATH = 'tracks_100k_updated.txt'
-ENCODER_RESULTS_PATH = 'variance_predict\\gaussian\\vae_results1\\'
+ENCODER_RESULTS_PATH = 'variance_predict\\gaussian\\vae\\vae_1_var_results1\\'
 DECODER_RESULTS_PATH = 'variance_predict\\gaussian\\vae_results1\\'
 
 # DATASET_PATH = 'tracks_1m_updated_asymmetric_higher.txt'
@@ -129,12 +129,12 @@ class GenerateNoiselessHitsLayer(nn.Module):
         return generate_noiseless_hits(z)
 
 class VAE_Encoder(nn.Module):
-    def __init__(self, input_size=30, hidden_sizes=LAYER_ARR, latent_size=5):
+    def __init__(self, input_size=30, hidden_sizes=LAYER_ARR, latent_size_mean=5, latent_size_var=5):
         super().__init__()
         layer_sizes = [input_size] + hidden_sizes
         self.hidden_layers = nn.ModuleList([nn.Linear(layer_sizes[i], layer_sizes[i + 1]) for i in range(len(layer_sizes) - 1)])
-        self.fc_mu = nn.Linear(hidden_sizes[-1], latent_size)
-        self.fc_logvar = nn.Linear(hidden_sizes[-1], latent_size)
+        self.fc_mu = nn.Linear(hidden_sizes[-1], latent_size_mean)
+        self.fc_logvar = nn.Linear(hidden_sizes[-1], latent_size_var)
 
     def reparameterize(self, mu, logvar):
         std = torch.exp(0.5 * logvar)
@@ -155,9 +155,9 @@ class VAE_Encoder(nn.Module):
 
 
 class VAE_EncoderWithHits(nn.Module):
-    def __init__(self, input_size=30, hidden_sizes=LAYER_ARR, latent_size=5):
+    def __init__(self, input_size=30, hidden_sizes=LAYER_ARR, latent_size_mean=5, latent_size_var=5):
         super().__init__()
-        self.encoder = VAE_Encoder(input_size, hidden_sizes, latent_size)
+        self.encoder = VAE_Encoder(input_size, hidden_sizes, latent_size_mean, latent_size_var)
         self.noiseless_hits_layer = GenerateNoiselessHitsLayer()
 
     def forward(self, x):
@@ -303,7 +303,7 @@ if __name__ == '__main__':
     train_dataloader = DataLoader(train_dataset, batch_size=BATCH_SIZE, shuffle=True, num_workers=4)
     val_dataloader = DataLoader(val_dataset, batch_size=BATCH_SIZE, shuffle=False, num_workers=4)
 
-    encoder = VAE_EncoderWithHits()
+    encoder = VAE_EncoderWithHits(latent_size_var=1)
     encoder = encoder.to(device)
 
     if torch.cuda.is_available():

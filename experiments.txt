@@ -175,3 +175,11 @@ batch size: 512
 encoder milestones: None
 decoder milestones: None
 
+For: variance_predict\gaussian\vae\vae_1_var_results1\
+# of encoder epochs: 100
+# of decoder epochs: 0
+learning rate: 0.0001
+batch size: 512
+encoder milestones: None
+decoder milestones: None
+
